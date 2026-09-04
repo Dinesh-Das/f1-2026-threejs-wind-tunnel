@@ -26,6 +26,6 @@ Starting Git state: repository already initialized. Two pre-existing untracked i
 ### Fix progress
 
 - A-001: fixed by making saved-team persistence best-effort and adding a regression test proving storage denial does not block team selection.
-- A-002: pending.
+- A-002: fixed by computing normalized scene bounds once per loaded model and reusing them for every mesh classification instead of traversing the full scene per mesh.
 
-Open Critical/High/Medium count after initial triage: 2.
+Open Critical/High/Medium count after fixes: 0.

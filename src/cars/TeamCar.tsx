@@ -42,6 +42,12 @@ type MeshRecord = {
   baseRotationX: number
 }
 
+type InferenceBounds = {
+  box: THREE.Box3
+  size: THREE.Vector3
+  center: THREE.Vector3
+}
+
 function explodedOffsetFor(part: string | null, worldPosition: THREE.Vector3) {
   if (!part) return new THREE.Vector3()
   const side = Math.sign(worldPosition.x || 1)
@@ -254,15 +260,12 @@ function toPhysicalMaterial(source: THREE.Material, team: Team, preserveSourceCo
   return { material, role }
 }
 
-function inferredPartFor(object: THREE.Object3D, root: THREE.Object3D, role: MaterialRole | null) {
+function inferredPartFor(object: THREE.Object3D, bounds: InferenceBounds, role: MaterialRole | null) {
   if (role === 'tire' || role === 'rim') return 'wheels'
-  const rootBox = robustSceneBounds(root)
-  const rootSize = rootBox.getSize(new THREE.Vector3())
-  const rootCenter = rootBox.getCenter(new THREE.Vector3())
   const box = new THREE.Box3().setFromObject(object)
   const center = box.getCenter(new THREE.Vector3())
-  const localZ = rootSize.z > 0 ? (center.z - rootCenter.z) / (rootSize.z * .5) : 0
-  const localY = rootSize.y > 0 ? (center.y - rootBox.min.y) / rootSize.y : 0
+  const localZ = bounds.size.z > 0 ? (center.z - bounds.center.z) / (bounds.size.z * .5) : 0
+  const localY = bounds.size.y > 0 ? (center.y - bounds.box.min.y) / bounds.size.y : 0
   if (localZ > .68 && localY < .58) return 'frontWing'
   if (localZ < -.68 && localY > .42) return 'rearWing'
   if (localY < .15) return localZ < -.48 ? 'diffuser' : 'floor'
@@ -359,12 +362,18 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
         const meshRecords: MeshRecord[] = []
         const materialRecords: MaterialRecord[] = []
         const rootPosition = scene.getWorldPosition(new THREE.Vector3())
+        const inferenceBox = robustSceneBounds(scene)
+        const inferenceBounds: InferenceBounds = {
+          box: inferenceBox,
+          size: inferenceBox.getSize(new THREE.Vector3()),
+          center: inferenceBox.getCenter(new THREE.Vector3()),
+        }
         scene.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return
           const meshMaterials = Array.isArray(object.material) ? object.material : [object.material]
           const firstPhysical = meshMaterials.find((material): material is THREE.MeshPhysicalMaterial => material instanceof THREE.MeshPhysicalMaterial)
           const role = firstPhysical ? materialRole(firstPhysical.name, firstPhysical.userData.f1Role) : null
-          const part = logicalPartFor(object, currentTeam, scene) ?? inferredPartFor(object, scene, role)
+          const part = logicalPartFor(object, currentTeam, scene) ?? inferredPartFor(object, inferenceBounds, role)
           const worldPosition = object.getWorldPosition(new THREE.Vector3()).sub(rootPosition)
           const basePosition = object.position.clone()
           const explodeOffset = explodedOffsetFor(part, worldPosition)
