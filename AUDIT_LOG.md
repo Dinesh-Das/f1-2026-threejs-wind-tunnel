@@ -29,3 +29,28 @@ Starting Git state: repository already initialized. Two pre-existing untracked i
 - A-002: fixed by computing normalized scene bounds once per loaded model and reusing them for every mesh classification instead of traversing the full scene per mesh.
 
 Open Critical/High/Medium count after fixes: 0.
+
+## Iteration 2 — 2026-09-04
+
+Fresh audit after both Medium fixes:
+
+- `npm run verify`: 24 tests passed; TypeScript project build and Vite production build passed.
+- `npm audit --audit-level=low`: 0 vulnerabilities.
+- `npm ls --depth=0`: dependency tree valid.
+- Manual follow-up scan found no new Critical, High, or Medium correctness, security, error-handling, or performance issues.
+- No lint/formatter check exists because the repository does not configure either tool.
+- Fresh `npm ci` remains environment-blocked by the already-running Vite dev server holding Windows native binaries; this is not a tracked-code failure and the normal install is intact.
+
+Open Critical/High/Medium count: 0.
+
+## Final summary
+
+- Iterations run: 2.
+- Critical: 0 found, 0 remaining.
+- High: 0 found, 0 remaining.
+- Medium: 2 found, 2 fixed, 0 remaining.
+- Low backlog: 3 items (unused legacy code/shaders, dependency upgrades, optional lint/formatter adoption).
+- Breaking changes: none.
+- Pre-existing untracked image files were not modified or committed.
+
+AUDIT_LOOP: CLEAN
