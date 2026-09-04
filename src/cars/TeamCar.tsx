@@ -107,6 +107,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
   const set = useF1Store((s) => s.set)
   const highlight = useMemo(() => new THREE.Color(team.secondaryColor), [team.secondaryColor])
   const pressureColor = useMemo(() => new THREE.Color('#ff4d21'), [])
+  const pressureBlendColor = useMemo(() => new THREE.Color(), [])
 
   useEffect(() => {
     let cancelled = false
@@ -223,7 +224,9 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     for (const record of materials.current) {
       record.material.opacity = THREE.MathUtils.damp(record.material.opacity, xray ? .24 : record.baseOpacity, 6, dt)
       record.material.depthWrite = !xray
-      const targetColor = pressure && windTunnel && windSpeed > 0 ? pressureColor : record.baseColor
+      const targetColor = pressure && windTunnel && windSpeed > 0
+        ? pressureBlendColor.copy(record.baseColor).lerp(pressureColor, .58)
+        : record.baseColor
       record.material.color.lerp(targetColor, blend)
       record.material.emissive.lerp(record.baseEmissive, blend)
       record.material.emissiveIntensity = THREE.MathUtils.damp(record.material.emissiveIntensity, record.baseEmissiveIntensity, 6, dt)

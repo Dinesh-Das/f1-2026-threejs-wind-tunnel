@@ -163,5 +163,31 @@ describe('simulation mode invariants', () => {
     useF1Store.getState().set({ compareMode: true })
     expect(useF1Store.getState().compareMode).toBe(true)
     expect(useF1Store.getState().aerodynamicMode).toBe(false)
+    expect(useF1Store.getState().windTunnel).toBe(false)
+  })
+
+  it('turns off the wind tunnel when aerodynamics is exited', () => {
+    useF1Store.setState({ aerodynamicMode: true, windTunnel: true })
+    useF1Store.getState().set({ aerodynamicMode: false })
+    expect(useF1Store.getState().aerodynamicMode).toBe(false)
+    expect(useF1Store.getState().windTunnel).toBe(false)
+  })
+
+  it('keeps driver and comparison selections valid when changing constructor', () => {
+    useF1Store.setState({
+      selectedTeamId: 'mclaren',
+      selectedDriverId: 'norris',
+      compareTeamId: 'ferrari',
+    })
+    useF1Store.getState().selectTeam('ferrari', 'leclerc')
+    const state = useF1Store.getState()
+    const selectedTeam = teams.find((team) => team.id === state.selectedTeamId)!
+    expect(selectedTeam.drivers.some((driver) => driver.id === state.selectedDriverId)).toBe(true)
+    expect(state.compareTeamId).not.toBe(state.selectedTeamId)
+  })
+
+  it('falls back to a constructor driver when an invalid driver id is supplied', () => {
+    useF1Store.getState().selectTeam('ferrari', 'not-a-driver')
+    expect(useF1Store.getState().selectedDriverId).toBe('leclerc')
   })
 })
