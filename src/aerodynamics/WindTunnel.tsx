@@ -6,13 +6,19 @@ import { GroundEffect } from './GroundEffect'
 import { useF1Store } from '../store/useF1Store'
 
 export function WindTunnel() {
-  const s = useF1Store()
-  if (!s.windTunnel || s.windSpeed <= 0 || s.floorView) return null
+  const windTunnel = useF1Store((s) => s.windTunnel)
+  const windSpeed = useF1Store((s) => s.windSpeed)
+  const floorView = useF1Store((s) => s.floorView)
+  const streamlines = useF1Store((s) => s.streamlines)
+  const vortices = useF1Store((s) => s.vortices)
+  const velocityField = useF1Store((s) => s.velocityField)
+  const groundEffect = useF1Store((s) => s.groundEffect)
+  if (!windTunnel || windSpeed <= 0 || floorView) return null
   return <group>
     <FlowParticles />
-    {s.streamlines && <Streamlines />}
-    {s.vortices && <VortexField />}
-    {s.velocityField && <VelocityField />}
-    {s.groundEffect && <GroundEffect />}
+    {streamlines && <Streamlines />}
+    {vortices && <VortexField />}
+    {velocityField && <VelocityField />}
+    {groundEffect && <GroundEffect />}
   </group>
 }

@@ -6,6 +6,14 @@ const cameras: Record<string, CameraPreset> = { '1':'hero','2':'front','3':'left
 export function useKeyboardShortcuts() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) return
+
       const store = useF1Store.getState()
       const key = event.key.toLowerCase()
       if (cameras[key]) store.set({

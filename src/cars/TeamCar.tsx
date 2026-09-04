@@ -18,6 +18,7 @@ type MaterialRecord = {
   material: THREE.MeshStandardMaterial
   baseColor: THREE.Color
   baseEmissive: THREE.Color
+  baseEmissiveIntensity: number
   baseOpacity: number
 }
 
@@ -27,6 +28,7 @@ type MeshRecord = {
   baseVisible: boolean
   basePosition: THREE.Vector3
   explodeOffset: THREE.Vector3
+  explodedPosition: THREE.Vector3
   isAeroFlap: boolean
   baseRotationX: number
 }
@@ -164,12 +166,15 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
           if (!(object instanceof THREE.Mesh)) return
           const part = logicalPartFor(object, team, scene)
           const worldPosition = object.getWorldPosition(new THREE.Vector3()).sub(rootPosition)
+          const basePosition = object.position.clone()
+          const explodeOffset = explodedOffsetFor(part, worldPosition)
           meshRecords.push({
             mesh: object,
             part,
             baseVisible: object.visible,
-            basePosition: object.position.clone(),
-            explodeOffset: explodedOffsetFor(part, worldPosition),
+            basePosition,
+            explodeOffset,
+            explodedPosition: basePosition.clone().add(explodeOffset),
             isAeroFlap: (part === 'rearWing' || part === 'frontWing') && /FLAP|DRS|ACTIVE/i.test(object.name),
             baseRotationX: object.rotation.x,
           })
@@ -181,6 +186,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
               material,
               baseColor: material.color.clone(),
               baseEmissive: material.emissive.clone(),
+              baseEmissiveIntensity: material.emissiveIntensity,
               baseOpacity: material.opacity,
             })
           })
@@ -208,7 +214,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     const blend = 1 - Math.exp(-dt * 6)
     for (const record of records.current) {
       record.mesh.visible = floorView ? record.part === 'floor' || record.part === 'diffuser' : record.baseVisible
-      const target = exploded ? record.basePosition.clone().add(record.explodeOffset) : record.basePosition
+      const target = exploded ? record.explodedPosition : record.basePosition
       record.mesh.position.lerp(target, blend)
       const flapTarget = activeAero && aeroState === 'Straight' && record.isAeroFlap ? record.baseRotationX - .16 : record.baseRotationX
       record.mesh.rotation.x = THREE.MathUtils.damp(record.mesh.rotation.x, flapTarget, 6, dt)
@@ -220,7 +226,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
       const targetColor = pressure && windTunnel && windSpeed > 0 ? pressureColor : record.baseColor
       record.material.color.lerp(targetColor, blend)
       record.material.emissive.lerp(record.baseEmissive, blend)
-      record.material.emissiveIntensity = THREE.MathUtils.damp(record.material.emissiveIntensity, 1, 6, dt)
+      record.material.emissiveIntensity = THREE.MathUtils.damp(record.material.emissiveIntensity, record.baseEmissiveIntensity, 6, dt)
     }
 
     if (selected) {

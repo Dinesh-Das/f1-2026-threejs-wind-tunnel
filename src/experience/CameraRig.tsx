@@ -23,6 +23,7 @@ const presets: Record<CameraPreset, [THREE.Vector3, THREE.Vector3]> = {
 }
 
 const componentPreset: Record<string, CameraPreset> = { frontWing:'frontWing', nose:'frontWing', suspension:'suspension', sidepods:'left', floor:'floor', diffuser:'diffuser', rearWing:'rearWing', halo:'cockpit', wheels:'suspension' }
+const cinematicSteps: CameraPreset[] = ['frontWing','suspension','cockpit','left','floor','diffuser','rearWing','hero']
 
 export function CameraRig() {
   const { camera } = useThree()
@@ -42,8 +43,7 @@ export function CameraRig() {
     let target = desired[1]
     if (cinematic) {
       elapsed.current += dt
-      const steps: CameraPreset[] = ['frontWing','suspension','cockpit','left','floor','diffuser','rearWing','hero']
-      const p = steps[Math.floor((elapsed.current / 3) % steps.length)]
+      const p = cinematicSteps[Math.floor((elapsed.current / 3) % cinematicSteps.length)]
       pos = presets[p][0]; target = presets[p][1]
       if (elapsed.current > 24) set({ cinematic: false, cameraPreset: 'hero' })
     }

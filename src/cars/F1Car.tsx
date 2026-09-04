@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
 import * as THREE from 'three'
@@ -123,6 +123,7 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
   logo.colorSpace = THREE.SRGBColorSpace
   const driver = team.drivers.find((candidate) => candidate.id === selectedDriverId) ?? team.drivers[0]
   const numberTexture = useMemo(() => driverNumberTexture(driver.number, team.livery.accent2), [driver.number, team.livery.accent2])
+  useEffect(() => () => numberTexture.dispose(), [numberTexture])
 
   const paint = useMemo(() => liveryMaterial(team, team.livery.body), [team])
   const sidepodPaint = useMemo(() => liveryMaterial(team, team.livery.sidepod), [team])

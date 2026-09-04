@@ -40,6 +40,22 @@ type State = {
 }
 
 const savedTeam = typeof localStorage !== 'undefined' ? localStorage.getItem('f1-2026-team') : null
+const prefersReducedMotion = typeof window !== 'undefined'
+  ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  : false
+
+function normalizePatch(patch: Partial<Omit<State, 'set'>>) {
+  if (patch.compareMode === true) {
+    return { ...patch, aerodynamicMode: false }
+  }
+  if (patch.windTunnel === true) {
+    return { ...patch, aerodynamicMode: true, compareMode: false }
+  }
+  if (patch.aerodynamicMode === true) {
+    return { ...patch, compareMode: false }
+  }
+  return patch
+}
 
 export const useF1Store = create<State>((set) => ({
   entered: false,
@@ -70,8 +86,8 @@ export const useF1Store = create<State>((set) => ({
   turntableDirection: 1,
   turntableSpeed: .18,
   cinematic: false,
-  reducedMotion: false,
-  set: (patch) => set(patch),
+  reducedMotion: prefersReducedMotion,
+  set: (patch) => set(normalizePatch(patch)),
   selectTeam: (teamId, firstDriverId) => {
     localStorage.setItem('f1-2026-team', teamId)
     set({ selectedTeamId: teamId, selectedDriverId: firstDriverId, selectedComponent: null })
