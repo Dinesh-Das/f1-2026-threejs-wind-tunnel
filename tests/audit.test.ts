@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { aeroProxyEnvelope, aeroProxyLoads, F1_2026_REFERENCE, freeStreamData, reynoldsNumber, wheelKinematics } from '../src/data/f1Reference'
 import { teams } from '../src/data/teams'
 import { useF1Store } from '../src/store/useF1Store'
@@ -149,6 +149,10 @@ describe('simulation mode invariants', () => {
     useF1Store.setState({ aerodynamicMode: false, compareMode: false, windTunnel: false })
   })
 
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('exits compare mode when aerodynamics is enabled', () => {
     useF1Store.setState({ compareMode: true })
     useF1Store.getState().set({ aerodynamicMode: true })
@@ -194,6 +198,16 @@ describe('simulation mode invariants', () => {
 
   it('falls back to a constructor driver when an invalid driver id is supplied', () => {
     useF1Store.getState().selectTeam('ferrari', 'not-a-driver')
+    expect(useF1Store.getState().selectedDriverId).toBe('leclerc')
+  })
+
+  it('still selects a constructor when browser storage is unavailable', () => {
+    vi.stubGlobal('localStorage', {
+      setItem: () => { throw new Error('storage blocked') },
+    })
+
+    expect(() => useF1Store.getState().selectTeam('ferrari', 'leclerc')).not.toThrow()
+    expect(useF1Store.getState().selectedTeamId).toBe('ferrari')
     expect(useF1Store.getState().selectedDriverId).toBe('leclerc')
   })
 })

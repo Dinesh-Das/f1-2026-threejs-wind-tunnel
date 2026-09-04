@@ -40,7 +40,26 @@ type State = {
   selectTeam: (teamId: string, firstDriverId: string) => void
 }
 
-const savedTeam = typeof localStorage !== 'undefined' ? localStorage.getItem('f1-2026-team') : null
+const TEAM_STORAGE_KEY = 'f1-2026-team'
+
+function readSavedTeam() {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(TEAM_STORAGE_KEY) : null
+  } catch {
+    return null
+  }
+}
+
+function persistSelectedTeam(teamId: string) {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(TEAM_STORAGE_KEY, teamId)
+  } catch {
+    // Persistence is optional. Browsers can deny storage access in hardened or
+    // sandboxed contexts; team selection must still work for the current session.
+  }
+}
+
+const savedTeam = readSavedTeam()
 const initialTeam = teams.find((team) => team.id === savedTeam) ?? teams[0]
 const initialCompareTeam = teams.find((team) => team.id === 'ferrari' && team.id !== initialTeam.id)
   ?? teams.find((team) => team.id !== initialTeam.id)
@@ -104,7 +123,7 @@ export const useF1Store = create<State>((set) => ({
     const team = teams.find((candidate) => candidate.id === teamId)
     if (!team) return
     const driverId = team.drivers.some((driver) => driver.id === firstDriverId) ? firstDriverId : team.drivers[0].id
-    if (typeof localStorage !== 'undefined') localStorage.setItem('f1-2026-team', team.id)
+    persistSelectedTeam(team.id)
     set((state) => ({
       selectedTeamId: team.id,
       selectedDriverId: driverId,
