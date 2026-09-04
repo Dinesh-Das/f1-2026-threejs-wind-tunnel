@@ -33,7 +33,7 @@ export function AeroControls() {
         }}>ISOLATE FLOOR</button>
         <button className={s.activeAero ? 'is-active' : ''} onClick={() => set({ activeAero: !s.activeAero })}>ACTIVE AERO</button>
       </div>
-      {s.activeAero && <div className="segmented"><button className={s.activeAeroState === 'Corner' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Corner' })}>Corner</button><button className={s.activeAeroState === 'Straight' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Straight' })}>Straight</button></div>}
+      {s.activeAero && <div className="segmented"><button className={s.activeAeroState === 'Corner' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Corner' })}>Z-MODE · DOWNFORCE</button><button className={s.activeAeroState === 'Straight' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Straight' })}>X-MODE · LOW DRAG</button></div>}
       <div className="hud-mini"><span>FLOW MODEL</span><b>GEOMETRY-REACTIVE PROXY</b><span>VALIDATION</span><b>NOT CFD</b></div>
     </aside>
   )

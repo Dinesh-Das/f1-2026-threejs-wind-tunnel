@@ -1,8 +1,8 @@
 # F1 2026 Three.js Garage & Wind Tunnel
 
-An interactive F1 2026 Three.js / React Three Fiber digital garage and aerodynamic wind-tunnel experience with all 11 constructors, team-specific presentation, interactive engineering views, and GPU-driven airflow visualization. It works immediately with a procedural Formula-style regulation proxy and is designed so authorized production GLB assets can replace the proxy architecture without changing the UI/state model.
+An interactive React Three Fiber / Three.js F1-style 2026 garage and aerodynamic wind-tunnel showcase. The current build ships one legally reusable shared chassis, reskins it in place for all 11 constructor presentations, and combines physical materials, HDR environment lighting, engineering inspection modes, active-aero visualization, and GPU-driven airflow effects.
 
-> The included car geometry is a reference-based proxy, not an exact 2026 team car. Procedural airflow, pressure and velocity graphics are visual aerodynamic simulations, not CFD or measured team data.
+> Accuracy note: the bundled chassis is a low-poly reference model, not an exact or official 2026 team car. Team liveries are stylized and do not reproduce exact sponsor artwork. Airflow, pressure, velocity, ground-effect, and active-aero graphics are illustrative visualizations, not CFD, telemetry, or measured constructor data.
 
 ## Install and run
 
@@ -11,10 +11,10 @@ npm install
 npm run dev
 ```
 
-Production build:
+Production verification and preview:
 
 ```bash
-npm run build
+npm run verify
 npm run preview
 ```
 
@@ -22,90 +22,89 @@ npm run preview
 
 - Mouse: left drag orbit, wheel zoom, right drag pan.
 - `1` Hero, `2` Front, `3` Side, `4` Rear, `5` Top.
-- `A` Aerodynamics, `W` Wind tunnel, `F` isolate/inspect the floor from below, `X` X-Ray, `E` Exploded view, `C` Cinematic, `R` reset, `Space` turntable pause, `Esc` clear selection.
-- Click proxy components to focus technical inspection.
+- `A` Aerodynamics, `W` Wind tunnel, `F` floor inspection, `X` X-Ray, `E` Exploded view, `C` Cinematic, `R` reset, `Space` turntable pause, `Esc` clear selection.
+- In Aerodynamics / Wind Tunnel, enable Active Aero and switch between `Z-MODE · DOWNFORCE` and `X-MODE · LOW DRAG` to animate the inferred front/rear flap groups.
+- Click inferred car components to focus technical inspection.
 
-## Asset folders
+## Bundled assets and licensing
 
-Place authorized assets under `public/assets`:
-
-```text
-public/assets/
-  cars/{team}/{team}-2026.glb       # optional authorized asset
-  teams/{team}/logo.webp
-  drivers/
-  textures/
-  hdr/
-  audio/
-```
-
-Team paths are configured in `src/data/teams.ts`. The included teams intentionally omit `carModel`, because no production GLBs are bundled; this prevents fake/missing-model requests and renders the regulation-based proxy immediately.
-
-## Replacing the proxy with a production GLB
-
-1. Export the authorized car in GLB/GLTF, preferably with Draco/Meshopt compression.
-2. Put it under `public/assets/cars/{team}` and set that team's optional `carModel` path in `src/data/teams.ts`, for example `/assets/cars/ferrari/ferrari-2026.glb`.
-3. Keep logical mesh names consistent or update that team's `meshMap` in `src/data/teams.ts`.
-4. `TeamCar.tsx` automatically loads the configured GLB, normalizes its scale/ground position, and uses `meshMap` for component selection, x-ray, pressure highlighting, exploded view, and named active-aero flaps.
-5. If the GLB is absent or fails to load, the procedural proxy is shown automatically, so a missing licensed model never breaks the experience.
-
-Production GLBs should use Y-up coordinates with the car length running on Z and the nose pointing toward +Z. Keep the model centered near its origin; runtime normalization handles common unit-scale differences.
-
-Recommended logical mesh targets:
+The shared chassis is bundled at:
 
 ```text
-BODY, MONOCOQUE, NOSE, FRONT_WING, FRONT_WING_FLAPS,
-REAR_WING, REAR_WING_FLAPS, FLOOR, DIFFUSER,
-SIDEPOD_L, SIDEPOD_R, HALO, ENGINE_COVER, AIRBOX,
-FRONT_SUSPENSION, REAR_SUSPENSION,
-FRONT_LEFT_WHEEL, FRONT_RIGHT_WHEEL,
-REAR_LEFT_WHEEL, REAR_RIGHT_WHEEL, COCKPIT, DRIVER
+public/assets/cars/base/scene.gltf
+public/assets/cars/base/scene.bin
+public/assets/cars/base/LICENSE.txt
 ```
 
-Different vendor naming is supported by mapping logical components to arbitrary mesh names:
+It is based on **“basic Lowpoly F1 Car V1” by arthihalder**, licensed under **CC BY 4.0**. Attribution and the source URL are preserved in `public/assets/cars/base/LICENSE.txt`.
 
-```ts
-meshMap: {
-  frontWing: ['FW_MAIN', 'FW_FLAP_01'],
-  rearWing: ['RW_MAIN', 'RW_FLAP'],
-  floor: ['FLOOR_MAIN'],
-  diffuser: ['DIFFUSER'],
-  wheels: ['WHEEL_FL', 'WHEEL_FR', 'WHEEL_RL', 'WHEEL_RR'],
-}
+The studio HDRI is bundled at:
+
+```text
+public/assets/hdr/studio_small_03_1k.hdr
 ```
 
-## Logos, liveries and textures
+and is distributed under CC0. Runtime decoder assets for Draco-compressed geometry and KTX2/Basis textures are also bundled under `public/assets/draco` and `public/assets/basis`.
 
-Keep trademarks and sponsor artwork as external replaceable files in `public/assets/teams/{team}` or car textures. Do not bake trademark graphics into procedural shaders. KTX2/Basis is recommended for production texture delivery. HDRIs belong under `public/assets/hdr`.
+Only add third-party logos, sponsor artwork, photography, driver imagery, audio, or replacement car models when you have the required rights to ship them.
+
+## Shared chassis and team reskinning
+
+All normal teams currently use the same shared glTF chassis. `src/cars/TeamCar.tsx` loads the model with `GLTFLoader`, `DRACOLoader`, and `KTX2Loader`, clones its geometry/materials, converts visible surfaces to `MeshPhysicalMaterial`, normalizes the car to the reference wheelbase, and infers component roles from the loaded hierarchy.
+
+Switching teams does not reload the shared glTF. Team colors and physical-material properties are updated in place, so the 11-team selector behaves like a data-driven livery/configuration switch over one base mesh.
+
+Team presentation data lives in `src/data/teams.ts`. The bundled liveries are intentionally stylized color treatments; they are not claimed to be exact replicas of 2026 paint, sponsor placement, or confidential geometry.
+
+## Active aero
+
+The UI keeps the existing internal aero-state values while presenting the 2026-style labels:
+
+- `Z-MODE · DOWNFORCE`
+- `X-MODE · LOW DRAG`
+
+`TeamCar.tsx` identifies likely front- and rear-wing flap meshes from the model hierarchy and animates their rotations as a visual proxy for active-aero state changes. This demonstrates the interaction architecture only; the included mesh does not encode an official constructor mechanism, homologated travel range, or FIA geometry.
+
+## Engineering views
+
+The same inferred mesh/component groups power component selection, x-ray rendering, exploded view, floor isolation, and pressure highlighting. Because the shared model was not authored with this application’s semantic mesh names, the runtime uses hierarchy/name inference rather than depending on exact vendor node labels.
+
+The technical panel reports calculated reference values such as free-stream speed, dynamic pressure, and wheel RPM from the selected wind speed using the stated standard-air-density assumption (`1.225 kg/m³`). These are derived display values, not telemetry.
 
 ## Aerodynamic visualization
 
-`FlowParticles.tsx` uses a single GPU `Points` draw with custom GLSL. Particle advection reaches zero at 0 km/h, scales with the wind-speed control, and changes its yaw/turbulence/wake/underfloor behavior with the selected illustrative flow scenario. `Streamlines`, `VortexField`, `VelocityField`, and `GroundEffect` use the same scenario model and remain separate visualization layers so each can be disabled for performance.
+`FlowParticles.tsx` uses a GPU `Points` simulation with custom GLSL. Particle motion reaches zero at 0 km/h and scales with the selected wind speed and scenario. Streamlines, vortex, velocity-field, wake, and ground-effect layers remain independently controllable for quality/performance.
 
-The wind-tunnel scene also models the two most important moving-ground conditions for a stationary test car: the rolling road moves opposite the car's forward direction at the free-stream-equivalent speed, and the wheels rotate from `ω = V / r` using the public 2026 tyre diameters. At 0 km/h the airflow, rolling road and wheels stop together. Aero mode also locks the car centerline to the tunnel; crosswind/yaw is applied to the flow scenario instead of leaving the showroom turntable at an arbitrary angle.
+The wind-tunnel presentation models a moving ground plane opposite the car’s forward direction and rotates the wheels from the configured free-stream-equivalent speed. Crosswind/yaw is applied to the flow scenario while the car remains aligned to the tunnel centerline.
 
-The technical panel derives free-stream speed, dynamic pressure and front/rear wheel rpm from the user-set wind speed with an explicitly stated standard-air-density assumption (`1.225 kg/m³`). These values are calculated references, not telemetry or CFD outputs. The dirty-air/slipstream presets apply their strongest disturbance and qualitative velocity-deficit cue downstream of the car, while the underfloor visualization contracts through the floor region and expands through the diffuser recovery region.
+Pressure and velocity modes are visual approximations. The shader/data boundaries are intentionally isolated so real CFD fields can replace the illustrative data later.
 
-The pressure mode currently changes the visual treatment for demonstration. The shader files under `src/shaders` are intentionally isolated so production pressure/velocity fields can replace the procedural approximations.
+## Lighting, rendering, and performance
 
-## Integrating real CFD later
+The scene uses HDR environment lighting, physical materials, ACES tone mapping, sRGB output, adaptive DPR, selective shadows, and restrained post-processing. The post-processing composer uses an unsigned-byte render target with multisampling disabled for broad WebGL compatibility; N8AO, SMAA, and subtle bloom are enabled on that stable target.
 
-Use a data-adapter layer that converts solver exports into GPU-friendly resources rather than coupling a particular CFD format to scene components. Typical inputs:
+Quality modes adjust DPR and aerodynamic particle density. Production assets can additionally use LODs, compressed KTX2 textures, and Draco/Meshopt geometry.
 
-- vector-field volumes or sampled velocity vectors,
-- surface pressure coefficient (`Cp`) values mapped by vertex/UV,
-- velocity scalar fields,
-- vortex core/path data,
-- time steps for transient results.
+## Replacing the low-poly chassis with a high-detail model
 
-Recommended pipeline: preprocess solver data offline → quantize/compress → load binary/texture resources → sample in GLSL. A 3D texture can drive particle advection; per-vertex or texture `Cp` can drive the pressure shader. Add explicit dataset provenance and units in the technical panel whenever real engineering data is loaded.
+The main remaining visual limitation is geometry fidelity. To reach true configurator / photoreal showcase quality, replace the shared chassis with a properly licensed high-detail Formula-style GLB/GLTF while retaining the same data-driven architecture.
 
-## Performance
+Recommended workflow:
 
-Quality modes change DPR and particle density. The renderer uses ACES tone mapping, adaptive DPR, instanced/GPU-friendly aero rendering, selective shadows, and restrained post-processing. For production licensed models add LODs, KTX2 textures, Draco/Meshopt decode and device-aware texture resolution.
+1. Obtain or create a model whose license permits your intended distribution/commercial use.
+2. Replace `public/assets/cars/base/scene.gltf` and its dependent buffers/textures, or point the team data to an authorized model path.
+3. Preserve sensible hierarchy/node names for body, floor, wheels, front wing, rear wing, and movable flap groups where possible.
+4. Keep the model Y-up, consistently scaled, and centered close to its origin. Runtime normalization handles common unit differences, but a clean export produces better inspection and animation behavior.
+5. Run `npm run verify` and visually exercise team switching, engineering modes, and both active-aero states after every model revision.
 
-## Licensing and accuracy
+The current application deliberately does not bundle unofficial 2026 constructor GLBs whose licenses do not permit redistribution of the relevant car assets.
 
-Only ship logos, liveries, driver portraits, models, photography, audio and sponsor marks when you have the required rights. Public reference imagery can inform your own authorized modeling process, but unrevealed or confidential engineering details should never be invented and presented as factual. Keep `reference_based_approximation: true` for proxy/reference-derived geometry until an appropriately licensed and verified production asset replaces it.
+## Real CFD integration path
 
-This is an unofficial engineering visualization project and is not affiliated with, endorsed by, or sponsored by Formula 1, the FIA, or any constructor. Formula 1, F1, constructor names, logos, and related marks remain the property of their respective owners.
+Keep solver data behind an adapter layer instead of coupling a CFD file format directly to the scene. Useful inputs include sampled velocity vectors, surface pressure coefficient (`Cp`), scalar velocity fields, vortex paths, and transient time steps.
+
+A practical pipeline is: preprocess solver output offline → quantize/compress → load binary or texture resources → sample in GLSL. A 3D texture can drive particle advection, while per-vertex or texture-space `Cp` can drive the pressure visualization. When real engineering datasets are introduced, expose provenance, units, assumptions, and timestep metadata in the technical panel.
+
+## Disclaimer
+
+This is an unofficial engineering-visualization project and is not affiliated with, endorsed by, or sponsored by Formula 1, the FIA, or any constructor. Formula 1, F1, constructor names, logos, and related marks remain the property of their respective owners.

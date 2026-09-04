@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
 import type { Team } from '../data/teams'
 import { F1_2026_REFERENCE, toSceneUnits } from '../data/f1Reference'
 import { useF1Store } from '../store/useF1Store'
-import { F1Car } from './F1Car'
+
+const SHARED_BASE_MODEL = '/assets/cars/base/scene.gltf'
+const assetManager = THREE.DefaultLoadingManager
+THREE.Cache.enabled = true
 
 type Props = {
   team: Team
@@ -14,9 +19,13 @@ type Props = {
   interactive?: boolean
 }
 
+type MaterialRole = 'body'|'secondary'|'accent'|'carbon'|'tire'|'rim'|'glass'|'interior'|'generic'
+
 type MaterialRecord = {
-  material: THREE.MeshStandardMaterial
+  material: THREE.MeshPhysicalMaterial
+  role: MaterialRole
   baseColor: THREE.Color
+  pressureColor: THREE.Color
   baseEmissive: THREE.Color
   baseEmissiveIntensity: number
   baseOpacity: number
@@ -50,17 +59,92 @@ function explodedOffsetFor(part: string | null, worldPosition: THREE.Vector3) {
   }
 }
 
+function hierarchyName(object: THREE.Object3D, root: THREE.Object3D) {
+  const names: string[] = []
+  let current: THREE.Object3D | null = object
+  while (current) {
+    if (current.name) names.push(current.name)
+    if (current === root) break
+    current = current.parent
+  }
+  return names.join(' ').toUpperCase()
+}
+
+function robustSceneBounds(root: THREE.Object3D) {
+  root.updateMatrixWorld(true)
+  const meshBounds: Array<{ box: THREE.Box3; planarSpan: number }> = []
+
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || !object.geometry) return
+    if (!object.geometry.boundingBox) object.geometry.computeBoundingBox()
+    const localBox = object.geometry.boundingBox
+    if (!localBox || localBox.isEmpty()) return
+
+    const box = localBox.clone().applyMatrix4(object.matrixWorld)
+    const size = box.getSize(new THREE.Vector3())
+    if (![size.x, size.y, size.z].every(Number.isFinite)) return
+    const planarSpan = Math.max(size.x, size.z)
+    if (planarSpan > 0) meshBounds.push({ box, planarSpan })
+  })
+
+  if (!meshBounds.length) return new THREE.Box3().setFromObject(root)
+
+  // Some third-party assets contain a single malformed detail mesh with a
+  // bounding box many times larger than the actual chassis. Keep rendering it,
+  // but exclude that geometric outlier from fit/centering calculations.
+  meshBounds.sort((a, b) => b.planarSpan - a.planarSpan)
+  let firstTrusted = 0
+  while (
+    firstTrusted + 1 < meshBounds.length
+    && meshBounds[firstTrusted].planarSpan > meshBounds[firstTrusted + 1].planarSpan * 3.5
+  ) {
+    firstTrusted += 1
+  }
+
+  const bounds = new THREE.Box3()
+  bounds.makeEmpty()
+  for (let i = firstTrusted; i < meshBounds.length; i += 1) bounds.union(meshBounds[i].box)
+  return bounds.isEmpty() ? new THREE.Box3().setFromObject(root) : bounds
+}
+
+function suppressExtremeGeometryOutliers(root: THREE.Object3D) {
+  root.updateMatrixWorld(true)
+  const candidates: Array<{ mesh: THREE.Mesh; planarSpan: number }> = []
+
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || !object.geometry) return
+    if (!object.geometry.boundingBox) object.geometry.computeBoundingBox()
+    const localBox = object.geometry.boundingBox
+    if (!localBox || localBox.isEmpty()) return
+    const worldBox = localBox.clone().applyMatrix4(object.matrixWorld)
+    const size = worldBox.getSize(new THREE.Vector3())
+    const planarSpan = Math.max(size.x, size.z)
+    if (Number.isFinite(planarSpan) && planarSpan > 0) candidates.push({ mesh: object, planarSpan })
+  })
+
+  candidates.sort((a, b) => b.planarSpan - a.planarSpan)
+  let index = 0
+  while (
+    index + 1 < candidates.length
+    && candidates[index].planarSpan > candidates[index + 1].planarSpan * 3.5
+  ) {
+    candidates[index].mesh.visible = false
+    candidates[index].mesh.userData.geometryOutlier = true
+    index += 1
+  }
+}
+
 function measuredWheelbase(scene: THREE.Object3D) {
   const front: number[] = []
   const rear: number[] = []
   scene.updateMatrixWorld(true)
   scene.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return
-    const name = object.name.toUpperCase()
+    const name = hierarchyName(object, scene)
     if (!/WHEEL|TYRE|TIRE/.test(name)) return
     const center = new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3())
     if (/FRONT|\bFL\b|\bFR\b/.test(name)) front.push(center.z)
-    if (/REAR|\bRL\b|\bRR\b/.test(name)) rear.push(center.z)
+    if (/REAR|BACK|\bRL\b|\bRR\b/.test(name)) rear.push(center.z)
   })
   if (!front.length || !rear.length) return null
   const avg = (items: number[]) => items.reduce((sum, value) => sum + value, 0) / items.length
@@ -90,11 +174,97 @@ function disposeScene(scene: THREE.Object3D) {
   })
 }
 
+function materialRole(name: string): MaterialRole {
+  const id = name.toLowerCase()
+  if (/wheel_tires|tyre|tire/.test(id)) return 'tire'
+  if (/rim/.test(id)) return 'rim'
+  if (/mirror|display|glass|visor/.test(id)) return 'glass'
+  if (/seat|yoke|button/.test(id)) return 'interior'
+  if (/support|dark|black|carbon|rod/.test(id)) return 'carbon'
+  if (/white|stripe/.test(id)) return 'accent'
+  if (/main_body_colour_red|material\.001|material$/.test(id)) return 'body'
+  if (/main_body_colour_black/.test(id)) return 'secondary'
+  return 'generic'
+}
+
+function roleColor(team: Team, role: MaterialRole) {
+  switch (role) {
+    case 'body': return team.livery.body
+    case 'secondary': return team.livery.sidepod
+    case 'accent': return team.livery.accent2
+    case 'carbon': return '#090b0d'
+    case 'tire': return '#111214'
+    case 'rim': return team.livery.accent
+    case 'glass': return '#0a1419'
+    case 'interior': return '#101216'
+    default: return team.livery.engineCover
+  }
+}
+
+function pressureColorFor(role: MaterialRole) {
+  if (role === 'tire' || role === 'rim') return '#4d82d8'
+  if (role === 'carbon') return '#e87722'
+  if (role === 'accent') return '#f7b24a'
+  return '#ef5c3d'
+}
+
+function toPhysicalMaterial(source: THREE.Material, team: Team) {
+  const standard = source instanceof THREE.MeshStandardMaterial ? source : null
+  const role = materialRole(source.name)
+  const paint = role === 'body' || role === 'secondary' || role === 'accent' || role === 'generic'
+  const material = new THREE.MeshPhysicalMaterial({
+    name: source.name,
+    color: new THREE.Color(roleColor(team, role)),
+    map: standard?.map ?? null,
+    normalMap: standard?.normalMap ?? null,
+    roughnessMap: standard?.roughnessMap ?? null,
+    metalnessMap: standard?.metalnessMap ?? null,
+    aoMap: standard?.aoMap ?? null,
+    emissiveMap: standard?.emissiveMap ?? null,
+    alphaMap: standard?.alphaMap ?? null,
+    side: source.side,
+    transparent: source.transparent,
+    opacity: source.opacity,
+    alphaTest: source.alphaTest,
+    roughness: role === 'tire' ? .88 : role === 'carbon' ? .34 : role === 'rim' ? .16 : role === 'glass' ? .08 : team.materials.roughness,
+    metalness: role === 'tire' ? .02 : role === 'carbon' ? .45 : role === 'rim' ? .95 : role === 'glass' ? .72 : team.materials.metallic,
+    clearcoat: paint ? team.materials.clearcoat : role === 'carbon' ? .35 : 0,
+    clearcoatRoughness: paint ? team.materials.clearcoatRoughness : .28,
+    envMapIntensity: role === 'tire' ? .35 : role === 'carbon' ? 1.1 : 1.45,
+  })
+  if (role === 'glass') {
+    material.transmission = .12
+    material.ior = 1.45
+  }
+  if (role === 'carbon') material.anisotropy = .35
+  return { material, role }
+}
+
+function inferredPartFor(object: THREE.Object3D, root: THREE.Object3D, role: MaterialRole | null) {
+  if (role === 'tire' || role === 'rim') return 'wheels'
+  const rootBox = robustSceneBounds(root)
+  const rootSize = rootBox.getSize(new THREE.Vector3())
+  const rootCenter = rootBox.getCenter(new THREE.Vector3())
+  const box = new THREE.Box3().setFromObject(object)
+  const center = box.getCenter(new THREE.Vector3())
+  const localZ = rootSize.z > 0 ? (center.z - rootCenter.z) / (rootSize.z * .5) : 0
+  const localY = rootSize.y > 0 ? (center.y - rootBox.min.y) / rootSize.y : 0
+  if (localZ > .68 && localY < .58) return 'frontWing'
+  if (localZ < -.68 && localY > .42) return 'rearWing'
+  if (localY < .15) return localZ < -.48 ? 'diffuser' : 'floor'
+  if (localZ > .42) return 'nose'
+  if (localZ < -.22) return 'sidepods'
+  return role === 'carbon' ? 'suspension' : 'sidepods'
+}
+
 export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = true }: Props) {
+  const gl = useThree((state) => state.gl)
   const [model, setModel] = useState<THREE.Group | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const records = useRef<MeshRecord[]>([])
   const materials = useRef<MaterialRecord[]>([])
+  const teamRef = useRef(team)
+  teamRef.current = team
   const exploded = useF1Store((s) => s.exploded)
   const xray = useF1Store((s) => s.xray)
   const pressure = useF1Store((s) => s.pressureMap)
@@ -106,8 +276,8 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
   const selected = useF1Store((s) => s.selectedComponent)
   const set = useF1Store((s) => s.set)
   const highlight = useMemo(() => new THREE.Color(team.secondaryColor), [team.secondaryColor])
-  const pressureColor = useMemo(() => new THREE.Color('#ff4d21'), [])
   const pressureBlendColor = useMemo(() => new THREE.Color(), [])
+  const modelUrl = team.carModel ?? SHARED_BASE_MODEL
 
   useEffect(() => {
     let cancelled = false
@@ -117,14 +287,17 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     records.current = []
     materials.current = []
 
-    // Proxy teams deliberately have no model URL. This avoids eleven guaranteed
-    // GLB 404s while keeping the exact same integration path for licensed assets.
-    if (!team.carModel) return
-
-    const loader = new GLTFLoader()
+    const loader = new GLTFLoader(assetManager)
+    const draco = new DRACOLoader(assetManager)
+    draco.setDecoderPath('/assets/draco/')
+    loader.setDRACOLoader(draco)
+    const ktx2 = new KTX2Loader(assetManager)
+    ktx2.setTranscoderPath('/assets/basis/').detectSupport(gl)
+    loader.setKTX2Loader(ktx2)
     loader.load(
-      team.carModel,
+      modelUrl,
       (gltf) => {
+        const currentTeam = teamRef.current
         const scene = gltf.scene.clone(true)
         if (cancelled) {
           disposeScene(scene)
@@ -133,26 +306,34 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
 
         scene.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return
+          object.geometry = object.geometry.clone()
           object.castShadow = true
           object.receiveShadow = true
-          if (Array.isArray(object.material)) object.material = object.material.map((material) => material.clone())
-          else object.material = object.material.clone()
+          if (Array.isArray(object.material)) object.material = object.material.map((material) => toPhysicalMaterial(material, currentTeam).material)
+          else object.material = toPhysicalMaterial(object.material, currentTeam).material
         })
 
-        const initialBox = new THREE.Box3().setFromObject(scene)
+        suppressExtremeGeometryOutliers(scene)
+
+        const initialBox = robustSceneBounds(scene)
         const initialSize = initialBox.getSize(new THREE.Vector3())
+        if (initialSize.x > initialSize.z * 1.2) {
+          scene.rotation.y = -Math.PI / 2
+          scene.updateMatrixWorld(true)
+        }
         const wheelbase = measuredWheelbase(scene)
-        const longestPlanDimension = Math.max(initialSize.x, initialSize.z)
+        const alignedBox = robustSceneBounds(scene)
+        const alignedSize = alignedBox.getSize(new THREE.Vector3())
+        const longestPlanDimension = Math.max(alignedSize.x, alignedSize.z)
         if (wheelbase) {
           scene.scale.setScalar(toSceneUnits(F1_2026_REFERENCE.maxWheelbaseM) / wheelbase)
         } else if (Number.isFinite(longestPlanDimension) && longestPlanDimension > 0) {
-          // Fallback only when wheel meshes cannot be identified. The proxy and
-          // mapped production assets should prefer the regulation wheelbase path.
+          // Fallback only when wheel meshes cannot be identified by hierarchy.
           scene.scale.setScalar(10 / longestPlanDimension)
         }
         if (wheelbase || (Number.isFinite(longestPlanDimension) && longestPlanDimension > 0)) {
           scene.updateMatrixWorld(true)
-          const box = new THREE.Box3().setFromObject(scene)
+          const box = robustSceneBounds(scene)
           const center = box.getCenter(new THREE.Vector3())
           scene.position.x -= center.x
           scene.position.z -= center.z
@@ -165,7 +346,10 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
         const rootPosition = scene.getWorldPosition(new THREE.Vector3())
         scene.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return
-          const part = logicalPartFor(object, team, scene)
+          const meshMaterials = Array.isArray(object.material) ? object.material : [object.material]
+          const firstPhysical = meshMaterials.find((material): material is THREE.MeshPhysicalMaterial => material instanceof THREE.MeshPhysicalMaterial)
+          const role = firstPhysical ? materialRole(firstPhysical.name) : null
+          const part = logicalPartFor(object, currentTeam, scene) ?? inferredPartFor(object, scene, role)
           const worldPosition = object.getWorldPosition(new THREE.Vector3()).sub(rootPosition)
           const basePosition = object.position.clone()
           const explodeOffset = explodedOffsetFor(part, worldPosition)
@@ -176,16 +360,17 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
             basePosition,
             explodeOffset,
             explodedPosition: basePosition.clone().add(explodeOffset),
-            isAeroFlap: (part === 'rearWing' || part === 'frontWing') && /FLAP|DRS|ACTIVE/i.test(object.name),
+            isAeroFlap: (part === 'rearWing' || part === 'frontWing') && (/FLAP|DRS|ACTIVE/i.test(object.name) || modelUrl === SHARED_BASE_MODEL),
             baseRotationX: object.rotation.x,
           })
-          const meshMaterials = Array.isArray(object.material) ? object.material : [object.material]
           meshMaterials.forEach((material) => {
-            if (!(material instanceof THREE.MeshStandardMaterial)) return
+            if (!(material instanceof THREE.MeshPhysicalMaterial)) return
             material.transparent = true
             materialRecords.push({
               material,
-              baseColor: material.color.clone(),
+              role: materialRole(material.name),
+              baseColor: new THREE.Color(roleColor(currentTeam, materialRole(material.name))),
+              pressureColor: new THREE.Color(pressureColorFor(materialRole(material.name))),
               baseEmissive: material.emissive.clone(),
               baseEmissiveIntensity: material.emissiveIntensity,
               baseOpacity: material.opacity,
@@ -206,9 +391,22 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
 
     return () => {
       cancelled = true
+      draco.dispose()
+      ktx2.dispose()
       if (loadedScene) disposeScene(loadedScene)
     }
-  }, [team.carModel, team.meshMap])
+  }, [gl, modelUrl, team.meshMap])
+
+  useEffect(() => {
+    for (const record of materials.current) {
+      record.baseColor.set(roleColor(team, record.role))
+      const paint = record.role === 'body' || record.role === 'secondary' || record.role === 'accent' || record.role === 'generic'
+      record.material.roughness = record.role === 'tire' ? .88 : record.role === 'carbon' ? .34 : record.role === 'rim' ? .16 : record.role === 'glass' ? .08 : team.materials.roughness
+      record.material.metalness = record.role === 'tire' ? .02 : record.role === 'carbon' ? .45 : record.role === 'rim' ? .95 : record.role === 'glass' ? .72 : team.materials.metallic
+      record.material.clearcoat = paint ? team.materials.clearcoat : record.role === 'carbon' ? .35 : 0
+      record.material.clearcoatRoughness = paint ? team.materials.clearcoatRoughness : .28
+    }
+  }, [team])
 
   useFrame((_, dt) => {
     if (!model) return
@@ -217,7 +415,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
       record.mesh.visible = floorView ? record.part === 'floor' || record.part === 'diffuser' : record.baseVisible
       const target = exploded ? record.explodedPosition : record.basePosition
       record.mesh.position.lerp(target, blend)
-      const flapTarget = activeAero && aeroState === 'Straight' && record.isAeroFlap ? record.baseRotationX - .16 : record.baseRotationX
+      const flapTarget = activeAero && aeroState === 'Straight' && record.isAeroFlap ? record.baseRotationX - .09 : record.baseRotationX
       record.mesh.rotation.x = THREE.MathUtils.damp(record.mesh.rotation.x, flapTarget, 6, dt)
     }
 
@@ -225,7 +423,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
       record.material.opacity = THREE.MathUtils.damp(record.material.opacity, xray ? .24 : record.baseOpacity, 6, dt)
       record.material.depthWrite = !xray
       const targetColor = pressure && windTunnel && windSpeed > 0
-        ? pressureBlendColor.copy(record.baseColor).lerp(pressureColor, .58)
+        ? pressureBlendColor.copy(record.baseColor).lerp(record.pressureColor, .5)
         : record.baseColor
       record.material.color.lerp(targetColor, blend)
       record.material.emissive.lerp(record.baseEmissive, blend)
@@ -237,7 +435,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
         if (record.part !== selected) continue
         const meshMaterials = Array.isArray(record.mesh.material) ? record.mesh.material : [record.mesh.material]
         for (const material of meshMaterials) {
-          if (!(material instanceof THREE.MeshStandardMaterial)) continue
+          if (!(material instanceof THREE.MeshPhysicalMaterial)) continue
           material.emissive.lerp(highlight, blend)
           material.emissiveIntensity = 1.5
         }
@@ -247,13 +445,13 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
 
   const onClick = (event: ThreeEvent<MouseEvent>) => {
     if (!interactive || !model) return
-    const part = logicalPartFor(event.object, team, model)
+    const part = records.current.find((record) => record.mesh === event.object)?.part ?? logicalPartFor(event.object, team, model)
     if (!part) return
     event.stopPropagation()
     set({ selectedComponent: part })
   }
 
-  if (!team.carModel || !model || loadFailed) return <F1Car team={team} position={position} scale={scale} interactive={interactive} />
+  if (!model || loadFailed) return null
 
   return (
     <group position={position} scale={scale} onClick={onClick}>

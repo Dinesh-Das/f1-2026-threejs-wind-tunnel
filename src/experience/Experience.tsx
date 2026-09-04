@@ -15,12 +15,13 @@ export function Experience() {
   return (
     <Canvas
       className="f1-canvas"
-      dpr={quality === 'ULTRA' ? [1.5, 2.25] : quality === 'HIGH' ? [1.25, 2] : [1, 1.5]}
+      dpr={quality === 'ULTRA' ? [1.5, 2] : quality === 'HIGH' ? [1.25, 1.75] : quality === 'MEDIUM' ? [1, 1.5] : [1, 1.25]}
       gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
       shadows={quality !== 'LOW'}
       camera={{ position: [7.2, 2.8, 8.8], fov: 34, near: .05, far: 120 }}
       onCreated={({ gl }) => {
         gl.toneMappingExposure = 1.08
+        gl.outputColorSpace = THREE.SRGBColorSpace
         gl.shadowMap.type = THREE.PCFSoftShadowMap
       }}
     >
@@ -31,9 +32,9 @@ export function Experience() {
       <WindTunnelEnvironment />
       <CarScene />
       <CameraRig />
-      <AdaptiveDpr pixelated />
-      {quality !== 'LOW' && <EffectComposer multisampling={quality === 'ULTRA' ? 4 : 0}>
-        <N8AO quality={quality === 'ULTRA' ? 'high' : 'medium'} aoRadius={.7} distanceFalloff={.8} intensity={1.35} halfRes={quality !== 'ULTRA'} screenSpaceRadius={false} />
+      <AdaptiveDpr />
+      {quality !== 'LOW' && <EffectComposer multisampling={0} frameBufferType={THREE.UnsignedByteType}>
+        <N8AO quality={quality === 'ULTRA' ? 'high' : 'medium'} aoRadius={.55} distanceFalloff={.8} intensity={.85} halfRes screenSpaceRadius={false} />
         <SMAA />
         <Bloom intensity={quality === 'ULTRA' ? .18 : .11} luminanceThreshold={1.35} mipmapBlur />
       </EffectComposer>}

@@ -38,6 +38,7 @@ export function TechnicalPanel() {
       {selected ? <div className="component-copy"><span className="panel-kicker">SELECTED COMPONENT</span><h3>{selected[0]}</h3><p>{selected[1]}</p><ul>{selected.slice(2).map((item) => <li key={item}>— {item}</li>)}</ul><small>Technical description is generic and does not claim confidential team-specific data.</small></div> : <div className="component-copy"><span className="panel-kicker">INSPECTION</span><h3>SELECT A COMPONENT</h3><p>Click a highlighted car component or choose a camera preset to move from showroom view into engineering inspection.</p></div>}
       <div className="compare-block"><span>COMPARISON</span><button className={s.compareMode ? 'is-active' : ''} onClick={() => s.set({ compareMode: !s.compareMode })}>{s.compareMode ? 'EXIT COMPARE' : 'COMPARE CAR'}</button>{s.compareMode && <select value={s.compareTeamId} onChange={(e) => s.set({ compareTeamId: e.target.value })}>{teams.filter((t) => t.id !== team.id).map((t) => <option value={t.id} key={t.id}>{t.shortName}</option>)}</select>}</div>
       {s.aerodynamicMode && <>
+        <div className="data-truth"><b>ACTIVE AERO</b><span>{s.activeAero ? (s.activeAeroState === 'Straight' ? 'X-MODE · LOW DRAG' : 'Z-MODE · HIGH DOWNFORCE') : 'INACTIVE'}</span></div>
         <div className="data-truth"><b>FREE STREAM</b><span>{activeWindSpeed} km/h · {freeStream.speedMs.toFixed(1)} m/s</span></div>
         <div className="data-truth"><b>DYNAMIC PRESSURE</b><span>{freeStream.dynamicPressureKpa.toFixed(2)} kPa derived</span></div>
         <div className="data-truth"><b>FLOW REGIME</b><span>Mach {freeStream.mach.toFixed(2)} · Re {(reynolds / 1e6).toFixed(1)}M derived</span></div>
@@ -50,7 +51,7 @@ export function TechnicalPanel() {
         <div className="data-truth"><b>FLOOR VELOCITY</b><span>{(floorFlow.speedRatio * 100).toFixed(0)}% free-stream proxy</span></div>
         <div className="data-truth"><b>WAKE VELOCITY</b><span>{(wakeFlow.speedRatio * 100).toFixed(0)}% free-stream proxy</span></div>
       </>}
-      <div className="data-truth"><b>MODEL STATUS</b><span>{team.reference_based_approximation ? '2026 REGULATION PROXY · OFFICIAL TEAM MARKS' : 'AUTHORIZED PRODUCTION ASSET'}</span></div>
+      <div className="data-truth"><b>MODEL STATUS</b><span>{team.carModel ? 'AUTHORIZED TEAM ASSET' : 'SHARED CC-BY CHASSIS · STYLIZED LIVERY'}</span></div>
     </aside>
   )
 }
