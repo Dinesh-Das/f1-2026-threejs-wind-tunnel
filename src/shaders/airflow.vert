@@ -5,6 +5,7 @@ uniform float uTurbulence;
 uniform float uWake;
 uniform float uFloor;
 uniform float uLateral;
+uniform float uWakeDeficit;
 varying float vAlpha;
 
 void main() {
@@ -19,13 +20,23 @@ void main() {
   float side = sign(p.x + 0.0001);
   p.x += side * bodyInfluence * max(0.0, 1.48 - abs(p.x)) * 0.42 * uLateral;
 
-  float wakeZone = (1.0 - smoothstep(-4.8, 0.4, p.z)) * uWake;
+  // Rear wake starts downstream of the rear axle/body; upstream clean air is
+  // intentionally left undisturbed.
+  float wakeZone = (1.0 - smoothstep(-4.9, -2.25, p.z)) * uWake;
+  float wakeCore = wakeZone * exp(-pow(p.x / 1.55, 2.0)) * exp(-pow((p.y - 0.15) / 1.05, 2.0));
   float phase = p.z * 1.7 + p.x * 2.8 + uTime * uSpeed * 5.0;
   p.x += sin(phase) * 0.28 * uTurbulence * wakeZone;
   p.y += cos(phase * 1.13) * 0.18 * uTurbulence * wakeZone;
+  // A velocity-deficit cue: particles bunch/lag in the central downstream
+  // corridor. This is qualitative and deliberately not presented as CFD.
+  p.z += wakeCore * uWakeDeficit * 1.35;
 
-  if (abs(p.x) < 1.25 && p.y < 0.38) {
-    p.y -= bodyInfluence * 0.2 * uFloor;
+  if (abs(p.x) < 1.25 && p.y < 0.32) {
+    float floorInfluence = exp(-pow((p.z + 0.15) / 3.1, 2.0)) * uFloor;
+    p.y = mix(p.y, -0.525, clamp(floorInfluence * 0.58, 0.0, 0.72));
+    float diffuserRecovery = (1.0 - smoothstep(-4.5, -2.5, p.z)) * uFloor;
+    p.y += diffuserRecovery * 0.24;
+    p.x += side * diffuserRecovery * 0.18;
   }
 
   vec4 mv = modelViewMatrix * vec4(p, 1.0);

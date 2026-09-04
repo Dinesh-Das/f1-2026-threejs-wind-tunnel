@@ -18,11 +18,16 @@ export function Streamlines() {
       const z = 8 - j*.34
       const progress = j / 47
       const sideDeflect = Math.exp(-Math.pow(z-2.2,2)/2.1) * Math.sign(x||1) * .38 * scenario.lateralDeflection
-      const floorPull = Math.abs(x)<1.3 ? -Math.exp(-Math.pow(z,2)/7)*.28*scenario.floor : 0
-      const wake = z < .4 ? THREE.MathUtils.clamp((-z + .4) / 5.4, 0, 1) : 0
+      const underfloor = Math.abs(x) < 1.3 && y < .28
+      const floorPull = underfloor ? -Math.exp(-Math.pow(z+.1,2)/8.5)*.23*scenario.floor : 0
+      const diffuser = underfloor && z < -2.45 ? THREE.MathUtils.clamp((-z - 2.45) / 2.2, 0, 1) * scenario.floor : 0
+      const diffuserLift = diffuser * .23
+      const diffuserSpread = diffuser * Math.sign(x || 1) * .28
+      const wake = z < -2.45 ? THREE.MathUtils.clamp((-z - 2.45) / 4.2, 0, 1) : 0
       const disturbed = Math.sin(j*.7 + i*1.9) * .18 * scenario.turbulence * wake
       const yaw = scenario.yaw * progress * 2.8
-      return new THREE.Vector3(x+sideDeflect+yaw+disturbed,y+floorPull+disturbed*.25,z)
+      const wakeLag = wake * scenario.wakeDeficit * Math.exp(-Math.pow(x / 1.45, 2)) * .38
+      return new THREE.Vector3(x+sideDeflect+diffuserSpread+yaw+disturbed,y+floorPull+diffuserLift+disturbed*.25,z+wakeLag)
     })
   }),[n, scenario])
   return <group>{lines.map((pts,i) => <Line key={i} points={pts} color={i%3===0?'#b9f2ff':'#4ac9ff'} lineWidth={i%3===0?1.2:.65} transparent opacity={.16 + windRatio*.34} />)}</group>

@@ -12,7 +12,7 @@ export function AeroControls() {
       <button className={`wind-toggle ${s.windTunnel ? 'is-active' : ''}`} onClick={() => set({ windTunnel: !s.windTunnel, aerodynamicMode: true })}>
         <span>WIND TUNNEL</span><b>{s.windTunnel ? 'ON' : 'OFF'}</b>
       </button>
-      <label className="slider-row"><span>WIND SPEED <b>{s.windSpeed} KM/H</b></span><input type="range" min="0" max="350" step="50" value={s.windSpeed} onChange={(e) => set({ windSpeed: Number(e.target.value), windTunnel: true })} /></label>
+      <label className="slider-row"><span>WIND SPEED <b>{s.windSpeed} KM/H</b></span><input type="range" min="0" max="350" step="10" value={s.windSpeed} onChange={(e) => set({ windSpeed: Number(e.target.value), windTunnel: true })} /></label>
       <div className="toggle-grid">
         <Toggle label="Streamlines" on={s.streamlines} change={() => set({ streamlines: !s.streamlines })} />
         <Toggle label="Vortices" on={s.vortices} change={() => set({ vortices: !s.vortices })} />

@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Group } from 'three'
+import * as THREE from 'three'
 import { useRef } from 'react'
 import { TeamCar } from '../cars/TeamCar'
 import { teamById } from '../data/teams'
@@ -15,8 +15,18 @@ export function CarScene() {
   const direction = useF1Store((s) => s.turntableDirection)
   const reduced = useF1Store((s) => s.reducedMotion)
   const floorView = useF1Store((s) => s.floorView)
-  const group = useRef<Group>(null)
-  useFrame((_, dt) => { if (group.current && turntable && !compareMode && !reduced && !floorView) group.current.rotation.y += dt * turntableSpeed * direction })
+  const aerodynamicMode = useF1Store((s) => s.aerodynamicMode)
+  const group = useRef<THREE.Group>(null)
+  useFrame((_, dt) => {
+    if (!group.current) return
+    if (aerodynamicMode) {
+      // A wind-tunnel run requires the car centerline to stay aligned with the
+      // tunnel. Scenario yaw is applied to the flow field, not by rotating the car.
+      group.current.rotation.y = THREE.MathUtils.damp(group.current.rotation.y, 0, 9, dt)
+      return
+    }
+    if (turntable && !compareMode && !reduced && !floorView) group.current.rotation.y += dt * turntableSpeed * direction
+  })
   return <group ref={group}>
     <Suspense fallback={null}>
       <TeamCar team={teamById(teamId)} position={compareMode ? [-2.6,0,0] : [0,0,0]} scale={compareMode ? .82 : 1} interactive={!compareMode} />

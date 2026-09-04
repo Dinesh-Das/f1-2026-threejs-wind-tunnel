@@ -96,6 +96,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
   const exploded = useF1Store((s) => s.exploded)
   const xray = useF1Store((s) => s.xray)
   const pressure = useF1Store((s) => s.pressureMap)
+  const windTunnel = useF1Store((s) => s.windTunnel)
   const windSpeed = useF1Store((s) => s.windSpeed)
   const floorView = useF1Store((s) => s.floorView)
   const activeAero = useF1Store((s) => s.activeAero)
@@ -216,7 +217,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     for (const record of materials.current) {
       record.material.opacity = THREE.MathUtils.damp(record.material.opacity, xray ? .24 : record.baseOpacity, 6, dt)
       record.material.depthWrite = !xray
-      const targetColor = pressure && windSpeed > 0 ? pressureColor : record.baseColor
+      const targetColor = pressure && windTunnel && windSpeed > 0 ? pressureColor : record.baseColor
       record.material.color.lerp(targetColor, blend)
       record.material.emissive.lerp(record.baseEmissive, blend)
       record.material.emissiveIntensity = THREE.MathUtils.damp(record.material.emissiveIntensity, 1, 6, dt)

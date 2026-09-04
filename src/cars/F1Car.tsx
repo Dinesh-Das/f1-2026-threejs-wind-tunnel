@@ -31,6 +31,10 @@ function Strut({ start, end, material }: { start: THREE.Vector3; end: THREE.Vect
 }
 
 function Wheel({ x, z, width, radius, tire, rim, brake }: { x: number; z: number; width: number; radius: number; tire: THREE.Material; rim: THREE.Material; brake: THREE.Material }) {
+  const aerodynamicMode = useF1Store((s) => s.aerodynamicMode)
+  const windTunnel = useF1Store((s) => s.windTunnel)
+  const windSpeed = useF1Store((s) => s.windSpeed)
+  const spin = useRef<THREE.Group>(null)
   const tyreProfile = useMemo(() => {
     const half = width / 2
     const shoulder = radius * .075
@@ -45,13 +49,23 @@ function Wheel({ x, z, width, radius, tire, rim, brake }: { x: number; z: number
       new THREE.Vector2(radius * .72, -half),
     ]
   }, [width, radius])
-  return <group position={[x, .04, z]} rotation={[0, 0, Math.PI / 2]}>
-    <mesh material={tire} castShadow receiveShadow><latheGeometry args={[tyreProfile, 48]} /></mesh>
-    <mesh material={rim} castShadow><cylinderGeometry args={[.42, .42, width * .78, 36]} /></mesh>
-    <mesh material={brake}><cylinderGeometry args={[.31, .31, width * .8, 40]} /></mesh>
-    <mesh position={[0, width * .405, 0]} material={rim} castShadow><cylinderGeometry args={[.355, .355, .028, 48]} /></mesh>
-    <mesh position={[0, width * .425, 0]} material={brake}><torusGeometry args={[.245, .018, 10, 44]} /></mesh>
-    <mesh position={[0, width * .22, .29]} material={rim}><boxGeometry args={[.08, .08, .22]} /></mesh>
+  useFrame((_, dt) => {
+    if (!spin.current || !aerodynamicMode || !windTunnel || windSpeed <= 0) return
+    const speedSceneUnits = (windSpeed / 3.6) * F1_2026_REFERENCE.sceneUnitsPerMetre
+    const angularVelocity = speedSceneUnits / radius
+    // The outer +90deg Z rotation maps local -Y to the wheel's world +X axle.
+    spin.current.rotation.y = (spin.current.rotation.y - angularVelocity * dt) % (Math.PI * 2)
+  })
+  const roadY = -.58
+  return <group position={[x, roadY + radius, z]} rotation={[0, 0, Math.PI / 2]}>
+    <group ref={spin}>
+      <mesh material={tire} castShadow receiveShadow><latheGeometry args={[tyreProfile, 48]} /></mesh>
+      <mesh material={rim} castShadow><cylinderGeometry args={[.42, .42, width * .78, 36]} /></mesh>
+      <mesh material={brake}><cylinderGeometry args={[.31, .31, width * .8, 40]} /></mesh>
+      <mesh position={[0, width * .405, 0]} material={rim} castShadow><cylinderGeometry args={[.355, .355, .028, 48]} /></mesh>
+      <mesh position={[0, width * .425, 0]} material={brake}><torusGeometry args={[.245, .018, 10, 44]} /></mesh>
+      <mesh position={[0, width * .22, .29]} material={rim}><boxGeometry args={[.08, .08, .22]} /></mesh>
+    </group>
   </group>
 }
 
@@ -95,6 +109,7 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
   const exploded = useF1Store((s) => s.exploded)
   const xray = useF1Store((s) => s.xray)
   const pressure = useF1Store((s) => s.pressureMap)
+  const windTunnel = useF1Store((s) => s.windTunnel)
   const windSpeed = useF1Store((s) => s.windSpeed)
   const floorView = useF1Store((s) => s.floorView)
   const activeAero = useF1Store((s) => s.activeAero)
@@ -136,7 +151,7 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
     for (const [material, baseColor] of liveryPaints) {
       material.opacity = THREE.MathUtils.damp(material.opacity, opacity, 5, dt)
       material.depthWrite = !xray
-      material.color.lerp(pressure && windSpeed > 0 ? pressurePaint : baseColor, 1 - Math.exp(-dt * 3))
+      material.color.lerp(pressure && windTunnel && windSpeed > 0 ? pressurePaint : baseColor, 1 - Math.exp(-dt * 3))
     }
     carbon.opacity = THREE.MathUtils.damp(carbon.opacity, xray ? .42 : 1, 5, dt)
     carbon.depthWrite = !xray
@@ -153,10 +168,12 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
   const lateralExplode = (x: number, amount = 1.1) => exploded ? Math.sign(x || 1) * amount : 0
   const axialExplode = (z: number, amount = 1.35) => exploded ? Math.sign(z || 1) * amount : 0
 
-  const frontHubR = new THREE.Vector3(frontWheelX, .04, frontAxleZ)
-  const frontHubL = new THREE.Vector3(-frontWheelX, .04, frontAxleZ)
-  const rearHubR = new THREE.Vector3(rearWheelX, .04, rearAxleZ)
-  const rearHubL = new THREE.Vector3(-rearWheelX, .04, rearAxleZ)
+  const frontHubY = -.58 + frontTyreRadius
+  const rearHubY = -.58 + rearTyreRadius
+  const frontHubR = new THREE.Vector3(frontWheelX, frontHubY, frontAxleZ)
+  const frontHubL = new THREE.Vector3(-frontWheelX, frontHubY, frontAxleZ)
+  const rearHubR = new THREE.Vector3(rearWheelX, rearHubY, rearAxleZ)
+  const rearHubL = new THREE.Vector3(-rearWheelX, rearHubY, rearAxleZ)
 
   return (
     <group position={position} scale={scale}>

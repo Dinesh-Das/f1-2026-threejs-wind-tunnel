@@ -82,7 +82,9 @@ Keep trademarks and sponsor artwork as external replaceable files in `public/ass
 
 `FlowParticles.tsx` uses a single GPU `Points` draw with custom GLSL. Particle advection reaches zero at 0 km/h, scales with the wind-speed control, and changes its yaw/turbulence/wake/underfloor behavior with the selected illustrative flow scenario. `Streamlines`, `VortexField`, `VelocityField`, and `GroundEffect` use the same scenario model and remain separate visualization layers so each can be disabled for performance.
 
-The technical panel derives free-stream speed and dynamic pressure from the user-set wind speed with an explicitly stated standard-air-density assumption (`1.225 kg/m³`). These values are calculated references, not telemetry or CFD outputs.
+The wind-tunnel scene also models the two most important moving-ground conditions for a stationary test car: the rolling road moves opposite the car's forward direction at the free-stream-equivalent speed, and the wheels rotate from `ω = V / r` using the public 2026 tyre diameters. At 0 km/h the airflow, rolling road and wheels stop together. Aero mode also locks the car centerline to the tunnel; crosswind/yaw is applied to the flow scenario instead of leaving the showroom turntable at an arbitrary angle.
+
+The technical panel derives free-stream speed, dynamic pressure and front/rear wheel rpm from the user-set wind speed with an explicitly stated standard-air-density assumption (`1.225 kg/m³`). These values are calculated references, not telemetry or CFD outputs. The dirty-air/slipstream presets apply their strongest disturbance and qualitative velocity-deficit cue downstream of the car, while the underfloor visualization contracts through the floor region and expands through the diffuser recovery region.
 
 The pressure mode currently changes the visual treatment for demonstration. The shader files under `src/shaders` are intentionally isolated so production pressure/velocity fields can replace the procedural approximations.
 

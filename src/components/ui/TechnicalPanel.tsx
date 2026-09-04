@@ -1,5 +1,5 @@
 import { teams, teamById } from '../../data/teams'
-import { F1_2026_REFERENCE, freeStreamData } from '../../data/f1Reference'
+import { F1_2026_REFERENCE, freeStreamData, wheelKinematics } from '../../data/f1Reference'
 import { useF1Store } from '../../store/useF1Store'
 
 const copy: Record<string, [string, string, ...string[]]> = {
@@ -19,7 +19,9 @@ export function TechnicalPanel() {
   const team = teamById(s.selectedTeamId)
   const driver = team.drivers.find((d) => d.id === s.selectedDriverId) ?? team.drivers[0]
   const selected = s.selectedComponent ? copy[s.selectedComponent] : null
-  const freeStream = freeStreamData(s.windSpeed)
+  const activeWindSpeed = s.windTunnel ? s.windSpeed : 0
+  const freeStream = freeStreamData(activeWindSpeed)
+  const wheels = wheelKinematics(activeWindSpeed)
   return (
     <aside className="technical-panel">
       <div className="telemetry-head"><span>CAR / 2026</span><span>INTERACTIVE 3D</span></div>
@@ -29,9 +31,11 @@ export function TechnicalPanel() {
       {selected ? <div className="component-copy"><span className="panel-kicker">SELECTED COMPONENT</span><h3>{selected[0]}</h3><p>{selected[1]}</p><ul>{selected.slice(2).map((item) => <li key={item}>— {item}</li>)}</ul><small>Technical description is generic and does not claim confidential team-specific data.</small></div> : <div className="component-copy"><span className="panel-kicker">INSPECTION</span><h3>SELECT A COMPONENT</h3><p>Click a highlighted car component or choose a camera preset to move from showroom view into engineering inspection.</p></div>}
       <div className="compare-block"><span>COMPARISON</span><button className={s.compareMode ? 'is-active' : ''} onClick={() => s.set({ compareMode: !s.compareMode })}>{s.compareMode ? 'EXIT COMPARE' : 'COMPARE CAR'}</button>{s.compareMode && <select value={s.compareTeamId} onChange={(e) => s.set({ compareTeamId: e.target.value })}>{teams.filter((t) => t.id !== team.id).map((t) => <option value={t.id} key={t.id}>{t.shortName}</option>)}</select>}</div>
       {s.aerodynamicMode && <>
-        <div className="data-truth"><b>FREE STREAM</b><span>{s.windSpeed} km/h · {freeStream.speedMs.toFixed(1)} m/s</span></div>
+        <div className="data-truth"><b>FREE STREAM</b><span>{activeWindSpeed} km/h · {freeStream.speedMs.toFixed(1)} m/s</span></div>
         <div className="data-truth"><b>DYNAMIC PRESSURE</b><span>{freeStream.dynamicPressureKpa.toFixed(2)} kPa derived</span></div>
         <div className="data-truth"><b>AIR DENSITY</b><span>{F1_2026_REFERENCE.airDensityKgM3.toFixed(3)} kg/m³ assumed</span></div>
+        <div className="data-truth"><b>ROLLING ROAD</b><span>{s.windTunnel && s.windSpeed > 0 ? 'MATCHED TO FREE STREAM' : 'STOPPED'}</span></div>
+        <div className="data-truth"><b>WHEEL SPEED</b><span>F {Math.round(wheels.frontRpm)} · R {Math.round(wheels.rearRpm)} rpm derived</span></div>
       </>}
       <div className="data-truth"><b>MODEL STATUS</b><span>{team.reference_based_approximation ? '2026 REGULATION PROXY · OFFICIAL TEAM MARKS' : 'AUTHORIZED PRODUCTION ASSET'}</span></div>
     </aside>

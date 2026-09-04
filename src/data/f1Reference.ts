@@ -22,3 +22,12 @@ export function freeStreamData(windSpeedKmh: number) {
     dynamicPressureKpa: dynamicPressurePa / 1000,
   }
 }
+
+export function wheelKinematics(windSpeedKmh: number) {
+  const speedMs = windSpeedKmh / 3.6
+  const rpmForDiameter = (diameterM: number) => speedMs / (Math.PI * diameterM) * 60
+  return {
+    frontRpm: rpmForDiameter(F1_2026_REFERENCE.frontTyreDiameterM),
+    rearRpm: rpmForDiameter(F1_2026_REFERENCE.rearTyreDiameterM),
+  }
+}

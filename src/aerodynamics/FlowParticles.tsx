@@ -27,6 +27,7 @@ export function FlowParticles() {
     material.current.uniforms.uWake.value = scenario.wake
     material.current.uniforms.uFloor.value = scenario.floor
     material.current.uniforms.uLateral.value = scenario.lateralDeflection
+    material.current.uniforms.uWakeDeficit.value = scenario.wakeDeficit
   })
   return <points frustumCulled={false}>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]} /></bufferGeometry>
@@ -38,6 +39,7 @@ export function FlowParticles() {
       uWake:{value:scenario.wake},
       uFloor:{value:scenario.floor},
       uLateral:{value:scenario.lateralDeflection},
+      uWakeDeficit:{value:scenario.wakeDeficit},
       uColor:{value:new THREE.Color('#7de3ff')},
     }} />
   </points>
