@@ -14,11 +14,11 @@ const presets: Record<CameraPreset, [THREE.Vector3, THREE.Vector3]> = {
   top: [new THREE.Vector3(.01,10,.01),new THREE.Vector3(0,0,0)],
   frontWing: [new THREE.Vector3(1.6,.45,5.2),new THREE.Vector3(0,-.05,3.5)],
   rearWing: [new THREE.Vector3(1.8,1.25,-5.0),new THREE.Vector3(0,.6,-3.2)],
-  floor: [new THREE.Vector3(6,-1.3,4.7),new THREE.Vector3(0,-.28,0)],
-  diffuser: [new THREE.Vector3(3,-.35,-5.2),new THREE.Vector3(0,-.15,-3.1)],
+  floor: [new THREE.Vector3(7.8,-4.9,8.2),new THREE.Vector3(0,-.5,-.45)],
+  diffuser: [new THREE.Vector3(3,.08,-5.2),new THREE.Vector3(0,-.28,-3.1)],
   cockpit: [new THREE.Vector3(2.6,2.2,1.2),new THREE.Vector3(0,.62,.45)],
   suspension: [new THREE.Vector3(4,.4,3.5),new THREE.Vector3(1.25,.1,2.5)],
-  onboard: [new THREE.Vector3(0,1.05,.55),new THREE.Vector3(0,.6,5)],
+  onboard: [new THREE.Vector3(0,1.16,.5),new THREE.Vector3(0,.5,5.5)],
   engineering: [new THREE.Vector3(8,4,8),new THREE.Vector3(0,0,0)],
 }
 

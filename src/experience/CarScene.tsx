@@ -14,8 +14,9 @@ export function CarScene() {
   const turntableSpeed = useF1Store((s) => s.turntableSpeed)
   const direction = useF1Store((s) => s.turntableDirection)
   const reduced = useF1Store((s) => s.reducedMotion)
+  const floorView = useF1Store((s) => s.floorView)
   const group = useRef<Group>(null)
-  useFrame((_, dt) => { if (group.current && turntable && !compareMode && !reduced) group.current.rotation.y += dt * turntableSpeed * direction })
+  useFrame((_, dt) => { if (group.current && turntable && !compareMode && !reduced && !floorView) group.current.rotation.y += dt * turntableSpeed * direction })
   return <group ref={group}>
     <Suspense fallback={null}>
       <TeamCar team={teamById(teamId)} position={compareMode ? [-2.6,0,0] : [0,0,0]} scale={compareMode ? .82 : 1} interactive={!compareMode} />

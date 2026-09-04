@@ -3,6 +3,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { Team } from '../data/teams'
+import { F1_2026_REFERENCE, toSceneUnits } from '../data/f1Reference'
 import { useF1Store } from '../store/useF1Store'
 import { F1Car } from './F1Car'
 
@@ -23,21 +24,46 @@ type MaterialRecord = {
 type MeshRecord = {
   mesh: THREE.Mesh
   part: string | null
+  baseVisible: boolean
   basePosition: THREE.Vector3
+  explodeOffset: THREE.Vector3
   isAeroFlap: boolean
   baseRotationX: number
 }
 
-const explodedOffsets: Record<string, THREE.Vector3> = {
-  frontWing: new THREE.Vector3(0, 0, 2.2),
-  nose: new THREE.Vector3(0, .25, 1.2),
-  suspension: new THREE.Vector3(1.4, .2, .3),
-  sidepods: new THREE.Vector3(1.8, .4, 0),
-  floor: new THREE.Vector3(0, -1, 0),
-  diffuser: new THREE.Vector3(0, -.4, -1.7),
-  rearWing: new THREE.Vector3(0, .6, -2),
-  halo: new THREE.Vector3(0, 1.2, 0),
-  wheels: new THREE.Vector3(2, .2, 0),
+function explodedOffsetFor(part: string | null, worldPosition: THREE.Vector3) {
+  if (!part) return new THREE.Vector3()
+  const side = Math.sign(worldPosition.x || 1)
+  switch (part) {
+    case 'frontWing': return new THREE.Vector3(0, 0, 1.35)
+    case 'nose': return new THREE.Vector3(0, .2, 1.0)
+    case 'suspension': return new THREE.Vector3(side * .85, .2, 0)
+    case 'sidepods': return new THREE.Vector3(side * 1.05, .3, 0)
+    case 'floor': return new THREE.Vector3(0, -.7, 0)
+    case 'diffuser': return new THREE.Vector3(0, -.2, -1.0)
+    case 'rearWing': return new THREE.Vector3(0, .45, -1.25)
+    case 'halo': return new THREE.Vector3(0, .85, 0)
+    case 'wheels': return new THREE.Vector3(side * .95, .12, Math.sign(worldPosition.z || 1) * .35)
+    default: return new THREE.Vector3()
+  }
+}
+
+function measuredWheelbase(scene: THREE.Object3D) {
+  const front: number[] = []
+  const rear: number[] = []
+  scene.updateMatrixWorld(true)
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return
+    const name = object.name.toUpperCase()
+    if (!/WHEEL|TYRE|TIRE/.test(name)) return
+    const center = new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3())
+    if (/FRONT|\bFL\b|\bFR\b/.test(name)) front.push(center.z)
+    if (/REAR|\bRL\b|\bRR\b/.test(name)) rear.push(center.z)
+  })
+  if (!front.length || !rear.length) return null
+  const avg = (items: number[]) => items.reduce((sum, value) => sum + value, 0) / items.length
+  const wheelbase = Math.abs(avg(front) - avg(rear))
+  return wheelbase > 0.001 ? wheelbase : null
 }
 
 function logicalPartFor(object: THREE.Object3D, team: Team, root: THREE.Object3D) {
@@ -70,6 +96,8 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
   const exploded = useF1Store((s) => s.exploded)
   const xray = useF1Store((s) => s.xray)
   const pressure = useF1Store((s) => s.pressureMap)
+  const windSpeed = useF1Store((s) => s.windSpeed)
+  const floorView = useF1Store((s) => s.floorView)
   const activeAero = useF1Store((s) => s.activeAero)
   const aeroState = useF1Store((s) => s.activeAeroState)
   const selected = useF1Store((s) => s.selectedComponent)
@@ -84,6 +112,10 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     setLoadFailed(false)
     records.current = []
     materials.current = []
+
+    // Proxy teams deliberately have no model URL. This avoids eleven guaranteed
+    // GLB 404s while keeping the exact same integration path for licensed assets.
+    if (!team.carModel) return
 
     const loader = new GLTFLoader()
     loader.load(
@@ -105,9 +137,16 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
 
         const initialBox = new THREE.Box3().setFromObject(scene)
         const initialSize = initialBox.getSize(new THREE.Vector3())
+        const wheelbase = measuredWheelbase(scene)
         const longestPlanDimension = Math.max(initialSize.x, initialSize.z)
-        if (Number.isFinite(longestPlanDimension) && longestPlanDimension > 0) {
-          scene.scale.setScalar(7.6 / longestPlanDimension)
+        if (wheelbase) {
+          scene.scale.setScalar(toSceneUnits(F1_2026_REFERENCE.maxWheelbaseM) / wheelbase)
+        } else if (Number.isFinite(longestPlanDimension) && longestPlanDimension > 0) {
+          // Fallback only when wheel meshes cannot be identified. The proxy and
+          // mapped production assets should prefer the regulation wheelbase path.
+          scene.scale.setScalar(10 / longestPlanDimension)
+        }
+        if (wheelbase || (Number.isFinite(longestPlanDimension) && longestPlanDimension > 0)) {
           scene.updateMatrixWorld(true)
           const box = new THREE.Box3().setFromObject(scene)
           const center = box.getCenter(new THREE.Vector3())
@@ -119,13 +158,17 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
         scene.updateMatrixWorld(true)
         const meshRecords: MeshRecord[] = []
         const materialRecords: MaterialRecord[] = []
+        const rootPosition = scene.getWorldPosition(new THREE.Vector3())
         scene.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return
           const part = logicalPartFor(object, team, scene)
+          const worldPosition = object.getWorldPosition(new THREE.Vector3()).sub(rootPosition)
           meshRecords.push({
             mesh: object,
             part,
+            baseVisible: object.visible,
             basePosition: object.position.clone(),
+            explodeOffset: explodedOffsetFor(part, worldPosition),
             isAeroFlap: (part === 'rearWing' || part === 'frontWing') && /FLAP|DRS|ACTIVE/i.test(object.name),
             baseRotationX: object.rotation.x,
           })
@@ -163,8 +206,8 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     if (!model) return
     const blend = 1 - Math.exp(-dt * 6)
     for (const record of records.current) {
-      const offset = exploded && record.part ? explodedOffsets[record.part] : null
-      const target = offset ? record.basePosition.clone().add(offset) : record.basePosition
+      record.mesh.visible = floorView ? record.part === 'floor' || record.part === 'diffuser' : record.baseVisible
+      const target = exploded ? record.basePosition.clone().add(record.explodeOffset) : record.basePosition
       record.mesh.position.lerp(target, blend)
       const flapTarget = activeAero && aeroState === 'Straight' && record.isAeroFlap ? record.baseRotationX - .16 : record.baseRotationX
       record.mesh.rotation.x = THREE.MathUtils.damp(record.mesh.rotation.x, flapTarget, 6, dt)
@@ -173,7 +216,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     for (const record of materials.current) {
       record.material.opacity = THREE.MathUtils.damp(record.material.opacity, xray ? .24 : record.baseOpacity, 6, dt)
       record.material.depthWrite = !xray
-      const targetColor = pressure ? pressureColor : record.baseColor
+      const targetColor = pressure && windSpeed > 0 ? pressureColor : record.baseColor
       record.material.color.lerp(targetColor, blend)
       record.material.emissive.lerp(record.baseEmissive, blend)
       record.material.emissiveIntensity = THREE.MathUtils.damp(record.material.emissiveIntensity, 1, 6, dt)
@@ -200,10 +243,10 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
     set({ selectedComponent: part })
   }
 
-  if (!model || loadFailed) return <F1Car team={team} position={position} scale={scale} interactive={interactive} />
+  if (!team.carModel || !model || loadFailed) return <F1Car team={team} position={position} scale={scale} interactive={interactive} />
 
   return (
-    <group position={position} scale={scale} rotation={[0, Math.PI, 0]} onClick={onClick}>
+    <group position={position} scale={scale} onClick={onClick}>
       <primitive object={model} />
     </group>
   )

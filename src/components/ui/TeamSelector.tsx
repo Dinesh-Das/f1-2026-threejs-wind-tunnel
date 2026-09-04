@@ -16,7 +16,8 @@ export function TeamSelector() {
             aria-label={`Select ${team.name}`}
           >
             <span className="team-index">{String(index + 1).padStart(2, '0')}</span>
-            <span className="team-swatch" style={{ background: team.primaryColor }} />
+            <span className="team-swatch" style={{ background: `linear-gradient(180deg, ${team.livery.accent}, ${team.primaryColor})` }} />
+            <img className="team-logo" src={team.logo} alt="" aria-hidden="true" />
             <span>{team.shortName}</span>
           </button>
         ))}

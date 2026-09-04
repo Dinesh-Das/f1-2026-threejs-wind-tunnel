@@ -8,7 +8,12 @@ export function CameraControls() {
   return (
     <div className="camera-strip" aria-label="Camera views">
       <span>CAMERA</span>
-      {views.map(([label, id]) => <button key={id} className={active === id ? 'is-active' : ''} onClick={() => set({ cameraPreset: id, selectedComponent: null })}>{label}</button>)}
+      {views.map(([label, id]) => <button key={id} className={active === id ? 'is-active' : ''} onClick={() => set({
+        cameraPreset: id,
+        selectedComponent: null,
+        floorView: id === 'floor',
+        turntable: id !== 'floor',
+      })}>{label}</button>)}
     </div>
   )
 }

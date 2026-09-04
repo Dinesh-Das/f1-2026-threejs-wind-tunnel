@@ -4,7 +4,8 @@ import { useF1Store } from '../store/useF1Store'
 export function GarageEnvironment() {
   const aero = useF1Store((s) => s.aerodynamicMode)
   const entered = useF1Store((s) => s.entered)
-  if (aero) return null
+  const floorView = useF1Store((s) => s.floorView)
+  if (aero || floorView) return null
   return <group>
     <mesh position={[0,-.52,0]} receiveShadow><cylinderGeometry args={[5.4,5.6,.2,96]} /><meshStandardMaterial color="#101214" metalness={.86} roughness={.18} /></mesh>
     <mesh position={[0,-.64,0]} rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[45,45]} /><meshStandardMaterial color="#070809" metalness={.76} roughness={.2} /></mesh>

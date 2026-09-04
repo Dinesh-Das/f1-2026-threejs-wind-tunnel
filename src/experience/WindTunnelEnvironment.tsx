@@ -8,9 +8,11 @@ import { WindTunnel } from '../aerodynamics/WindTunnel'
 export function WindTunnelEnvironment() {
   const aero = useF1Store((s) => s.aerodynamicMode)
   const wind = useF1Store((s) => s.windTunnel)
+  const windSpeed = useF1Store((s) => s.windSpeed)
+  const floorView = useF1Store((s) => s.floorView)
   const fan = useRef<Group>(null)
-  useFrame((_,dt) => { if (fan.current && wind) fan.current.rotation.z += dt * 4 })
-  if (!aero) return null
+  useFrame((_,dt) => { if (fan.current && wind && windSpeed > 0) fan.current.rotation.z += dt * 5.5 * (windSpeed / 350) })
+  if (!aero || floorView) return null
   return <group>
     <mesh position={[0,-.58,0]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[32,18]} /><meshStandardMaterial color="#071014" metalness={.65} roughness={.34} /></mesh>
     <Grid position={[0,-.57,0]} args={[32,18]} cellSize={.5} cellThickness={.18} cellColor="#123546" sectionSize={2} sectionThickness={.55} sectionColor="#1e6e8f" fadeDistance={22} />

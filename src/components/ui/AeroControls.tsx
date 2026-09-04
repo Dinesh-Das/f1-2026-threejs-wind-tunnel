@@ -1,4 +1,5 @@
 import { useF1Store, type FlowPreset } from '../../store/useF1Store'
+import { FLOW_PRESET_SPEED_KMH } from '../../aerodynamics/flowModel'
 
 const presets: FlowPreset[] = ['Clean Air','Cornering','High Speed','Low Speed','Slipstream Demonstration','Dirty Air']
 
@@ -15,19 +16,25 @@ export function AeroControls() {
       <div className="toggle-grid">
         <Toggle label="Streamlines" on={s.streamlines} change={() => set({ streamlines: !s.streamlines })} />
         <Toggle label="Vortices" on={s.vortices} change={() => set({ vortices: !s.vortices })} />
-        <Toggle label="Pressure map" on={s.pressureMap} change={() => set({ pressureMap: !s.pressureMap })} />
+        <Toggle label="Pressure cue" on={s.pressureMap} change={() => set({ pressureMap: !s.pressureMap })} />
         <Toggle label="Velocity field" on={s.velocityField} change={() => set({ velocityField: !s.velocityField })} />
-        <Toggle label="Ground effect" on={s.groundEffect} change={() => set({ groundEffect: !s.groundEffect })} />
+        <Toggle label="Underfloor flow" on={s.groundEffect} change={() => set({ groundEffect: !s.groundEffect })} />
         <Toggle label="X-Ray" on={s.xray} change={() => set({ xray: !s.xray })} />
       </div>
-      <div className="density-row"><span>FLOW</span><select value={s.flowPreset} onChange={(e) => set({ flowPreset: e.target.value as FlowPreset })}>{presets.map((p) => <option key={p}>{p}</option>)}</select></div>
+      <div className="density-row"><span>FLOW SCENARIO</span><select value={s.flowPreset} onChange={(e) => {
+        const flowPreset = e.target.value as FlowPreset
+        set({ flowPreset, windSpeed: FLOW_PRESET_SPEED_KMH[flowPreset], windTunnel: true })
+      }}>{presets.map((p) => <option key={p}>{p}</option>)}</select></div>
       <div className="engineering-actions">
         <button className={s.exploded ? 'is-active' : ''} onClick={() => set({ exploded: !s.exploded })}>EXPLODED VIEW</button>
-        <button className={s.floorView ? 'is-active' : ''} onClick={() => set({ floorView: !s.floorView, cameraPreset: 'floor' })}>VIEW FLOOR</button>
+        <button className={s.floorView ? 'is-active' : ''} onClick={() => {
+          const floorView = !s.floorView
+          set({ floorView, cameraPreset: floorView ? 'floor' : 'hero', selectedComponent: null, turntable: !floorView })
+        }}>ISOLATE FLOOR</button>
         <button className={s.activeAero ? 'is-active' : ''} onClick={() => set({ activeAero: !s.activeAero })}>ACTIVE AERO</button>
       </div>
       {s.activeAero && <div className="segmented"><button className={s.activeAeroState === 'Corner' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Corner' })}>Corner</button><button className={s.activeAeroState === 'Straight' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Straight' })}>Straight</button></div>}
-      <div className="hud-mini"><span>FLOW MODEL</span><b>PROCEDURAL / GPU</b><span>DATA STATUS</span><b>DEMONSTRATION</b></div>
+      <div className="hud-mini"><span>FLOW MODEL</span><b>ILLUSTRATIVE / GPU</b><span>VALIDATION</span><b>NOT CFD</b></div>
     </aside>
   )
 }

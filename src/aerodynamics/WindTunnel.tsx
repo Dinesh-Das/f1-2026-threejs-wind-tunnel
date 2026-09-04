@@ -7,7 +7,7 @@ import { useF1Store } from '../store/useF1Store'
 
 export function WindTunnel() {
   const s = useF1Store()
-  if (!s.windTunnel) return null
+  if (!s.windTunnel || s.windSpeed <= 0 || s.floorView) return null
   return <group>
     <FlowParticles />
     {s.streamlines && <Streamlines />}
