@@ -4,14 +4,17 @@ import * as THREE from 'three'
 import airflowVertex from '../shaders/airflow.vert?raw'
 import airflowFragment from '../shaders/airflow.frag?raw'
 import { useF1Store } from '../store/useF1Store'
+import { teamById } from '../data/teams'
 import { FLOW_SCENARIOS } from './flowModel'
 
 export function FlowParticles() {
   const quality = useF1Store((s) => s.quality)
   const windSpeed = useF1Store((s) => s.windSpeed)
   const flowPreset = useF1Store((s) => s.flowPreset)
+  const selectedTeamId = useF1Store((s) => s.selectedTeamId)
   const material = useRef<THREE.ShaderMaterial>(null)
   const scenario = FLOW_SCENARIOS[flowPreset]
+  const geometry = teamById(selectedTeamId).geometry
   const count = quality === 'ULTRA' ? 80000 : quality === 'HIGH' ? 42000 : quality === 'MEDIUM' ? 22000 : 9000
   const positions = useMemo(() => {
     const a = new Float32Array(count*3)
@@ -28,6 +31,12 @@ export function FlowParticles() {
     material.current.uniforms.uFloor.value = scenario.floor
     material.current.uniforms.uLateral.value = scenario.lateralDeflection
     material.current.uniforms.uWakeDeficit.value = scenario.wakeDeficit
+    material.current.uniforms.uNoseWidth.value = geometry.noseTipWidth
+    material.current.uniforms.uSidepodWidth.value = geometry.sidepodWidth
+    material.current.uniforms.uUndercut.value = geometry.sidepodUndercut
+    material.current.uniforms.uFloorWidth.value = geometry.floorEdgeWidth
+    material.current.uniforms.uDiffuser.value = geometry.diffuserExpansion
+    material.current.uniforms.uRearWing.value = geometry.rearWingCamber
   })
   return <points frustumCulled={false}>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]} /></bufferGeometry>
@@ -40,6 +49,12 @@ export function FlowParticles() {
       uFloor:{value:scenario.floor},
       uLateral:{value:scenario.lateralDeflection},
       uWakeDeficit:{value:scenario.wakeDeficit},
+      uNoseWidth:{value:geometry.noseTipWidth},
+      uSidepodWidth:{value:geometry.sidepodWidth},
+      uUndercut:{value:geometry.sidepodUndercut},
+      uFloorWidth:{value:geometry.floorEdgeWidth},
+      uDiffuser:{value:geometry.diffuserExpansion},
+      uRearWing:{value:geometry.rearWingCamber},
       uColor:{value:new THREE.Color('#7de3ff')},
     }} />
   </points>

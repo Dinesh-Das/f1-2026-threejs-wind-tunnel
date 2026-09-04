@@ -1,5 +1,6 @@
 import { teams, teamById } from '../../data/teams'
-import { aeroProxyLoads, F1_2026_REFERENCE, freeStreamData, wheelKinematics } from '../../data/f1Reference'
+import { aeroProxyEnvelope, F1_2026_REFERENCE, freeStreamData, reynoldsNumber, wheelKinematics } from '../../data/f1Reference'
+import { FLOW_SCENARIOS, sampleProxyFlow } from '../../aerodynamics/flowModel'
 import { useF1Store } from '../../store/useF1Store'
 
 const copy: Record<string, [string, string, ...string[]]> = {
@@ -21,8 +22,13 @@ export function TechnicalPanel() {
   const selected = s.selectedComponent ? copy[s.selectedComponent] : null
   const activeWindSpeed = s.windTunnel ? s.windSpeed : 0
   const freeStream = freeStreamData(activeWindSpeed)
+  const reynolds = reynoldsNumber(activeWindSpeed)
   const wheels = wheelKinematics(activeWindSpeed)
-  const proxyLoads = aeroProxyLoads(activeWindSpeed, s.activeAero && s.activeAeroState === 'Straight' ? 'Straight' : 'Corner')
+  const scenario = FLOW_SCENARIOS[s.flowPreset]
+  const aeroState = s.activeAero && s.activeAeroState === 'Straight' ? 'Straight' : 'Corner'
+  const proxyLoads = aeroProxyEnvelope(activeWindSpeed, aeroState, team.geometry, scenario.yaw, scenario.wakeDeficit)
+  const floorFlow = sampleProxyFlow(0, -.5, -.25, team.geometry, scenario, Math.min(1, activeWindSpeed / 350))
+  const wakeFlow = sampleProxyFlow(0, .2, -5.2, team.geometry, scenario, Math.min(1, activeWindSpeed / 350))
   return (
     <aside className="technical-panel">
       <div className="telemetry-head"><span>CAR / 2026</span><span>INTERACTIVE 3D</span></div>
@@ -34,11 +40,15 @@ export function TechnicalPanel() {
       {s.aerodynamicMode && <>
         <div className="data-truth"><b>FREE STREAM</b><span>{activeWindSpeed} km/h · {freeStream.speedMs.toFixed(1)} m/s</span></div>
         <div className="data-truth"><b>DYNAMIC PRESSURE</b><span>{freeStream.dynamicPressureKpa.toFixed(2)} kPa derived</span></div>
+        <div className="data-truth"><b>FLOW REGIME</b><span>Mach {freeStream.mach.toFixed(2)} · Re {(reynolds / 1e6).toFixed(1)}M derived</span></div>
         <div className="data-truth"><b>AIR DENSITY</b><span>{F1_2026_REFERENCE.airDensityKgM3.toFixed(3)} kg/m³ assumed</span></div>
         <div className="data-truth"><b>ROLLING ROAD</b><span>{s.windTunnel && s.windSpeed > 0 ? 'MATCHED TO FREE STREAM' : 'STOPPED'}</span></div>
         <div className="data-truth"><b>WHEEL SPEED</b><span>F {Math.round(wheels.frontRpm)} · R {Math.round(wheels.rearRpm)} rpm derived</span></div>
-        <div className="data-truth"><b>DRAG LOAD</b><span>{(proxyLoads.dragN / 1000).toFixed(1)} kN proxy · Cd {proxyLoads.dragCoefficient.toFixed(2)}</span></div>
-        <div className="data-truth"><b>DOWNFORCE</b><span>{(proxyLoads.downforceN / 1000).toFixed(1)} kN proxy · Cl {proxyLoads.downforceCoefficient.toFixed(2)}</span></div>
+        <div className="data-truth"><b>DRAG LOAD</b><span>{(proxyLoads.effectiveDragN / 1000).toFixed(1)} kN proxy · Cd {proxyLoads.dragCoefficient.toFixed(2)}</span></div>
+        <div className="data-truth"><b>DOWNFORCE</b><span>{(proxyLoads.effectiveDownforceN / 1000).toFixed(1)} kN proxy · Cl {proxyLoads.downforceCoefficient.toFixed(2)}</span></div>
+        <div className="data-truth"><b>AERO BALANCE</b><span>F {(proxyLoads.frontShare * 100).toFixed(1)}% · R {(proxyLoads.rearShare * 100).toFixed(1)}% proxy</span></div>
+        <div className="data-truth"><b>FLOOR VELOCITY</b><span>{(floorFlow.speedRatio * 100).toFixed(0)}% free-stream proxy</span></div>
+        <div className="data-truth"><b>WAKE VELOCITY</b><span>{(wakeFlow.speedRatio * 100).toFixed(0)}% free-stream proxy</span></div>
       </>}
       <div className="data-truth"><b>MODEL STATUS</b><span>{team.reference_based_approximation ? '2026 REGULATION PROXY · OFFICIAL TEAM MARKS' : 'AUTHORIZED PRODUCTION ASSET'}</span></div>
     </aside>

@@ -34,7 +34,7 @@ export function AeroControls() {
         <button className={s.activeAero ? 'is-active' : ''} onClick={() => set({ activeAero: !s.activeAero })}>ACTIVE AERO</button>
       </div>
       {s.activeAero && <div className="segmented"><button className={s.activeAeroState === 'Corner' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Corner' })}>Corner</button><button className={s.activeAeroState === 'Straight' ? 'is-active' : ''} onClick={() => set({ activeAeroState: 'Straight' })}>Straight</button></div>}
-      <div className="hud-mini"><span>FLOW MODEL</span><b>ILLUSTRATIVE / GPU</b><span>VALIDATION</span><b>NOT CFD</b></div>
+      <div className="hud-mini"><span>FLOW MODEL</span><b>GEOMETRY-REACTIVE PROXY</b><span>VALIDATION</span><b>NOT CFD</b></div>
     </aside>
   )
 }

@@ -22,6 +22,19 @@ const presets: Record<CameraPreset, [THREE.Vector3, THREE.Vector3]> = {
   engineering: [new THREE.Vector3(8,4,8),new THREE.Vector3(0,0,0)],
 }
 
+const aerodynamicHero: [THREE.Vector3, THREE.Vector3] = [
+  // Inspection camera lives inside the test section. Keeping it downstream of
+  // the contraction prevents the tunnel structure from occluding the car while
+  // retaining a realistic three-quarter engineering view.
+  new THREE.Vector3(8.55, 2.95, 4.55),
+  new THREE.Vector3(-.58, -.02, -.38),
+]
+
+const compareHero: [THREE.Vector3, THREE.Vector3] = [
+  new THREE.Vector3(11.2, 4.3, 13.2),
+  new THREE.Vector3(0, .1, 0),
+]
+
 const componentPreset: Record<string, CameraPreset> = { frontWing:'frontWing', nose:'frontWing', suspension:'suspension', sidepods:'left', floor:'floor', diffuser:'diffuser', rearWing:'rearWing', halo:'cockpit', wheels:'suspension' }
 const cinematicSteps: CameraPreset[] = ['frontWing','suspension','cockpit','left','floor','diffuser','rearWing','hero']
 
@@ -32,8 +45,15 @@ export function CameraRig() {
   const selected = useF1Store((s) => s.selectedComponent)
   const cinematic = useF1Store((s) => s.cinematic)
   const reduced = useF1Store((s) => s.reducedMotion)
+  const aerodynamicMode = useF1Store((s) => s.aerodynamicMode)
+  const compareMode = useF1Store((s) => s.compareMode)
   const set = useF1Store((s) => s.set)
-  const desired = useMemo(() => presets[selected ? componentPreset[selected] ?? preset : preset], [preset, selected])
+  const desired = useMemo(() => {
+    const resolvedPreset = selected ? componentPreset[selected] ?? preset : preset
+    if (!selected && resolvedPreset === 'hero' && aerodynamicMode) return aerodynamicHero
+    if (!selected && resolvedPreset === 'hero' && compareMode) return compareHero
+    return presets[resolvedPreset]
+  }, [preset, selected, aerodynamicMode, compareMode])
   const elapsed = useRef(0)
 
   useEffect(() => { elapsed.current = 0 }, [cinematic])

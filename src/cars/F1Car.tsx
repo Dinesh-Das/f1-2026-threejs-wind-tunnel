@@ -234,6 +234,33 @@ function tyreMarkTexture() {
   return texture
 }
 
+function carbonWeaveTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 96
+  canvas.height = 96
+  const context = canvas.getContext('2d')
+  if (context) {
+    context.fillStyle = '#7d7d7d'
+    context.fillRect(0, 0, 96, 96)
+    for (let y = -12; y < 108; y += 12) {
+      for (let x = -12; x < 108; x += 12) {
+        context.fillStyle = ((x + y) / 12) % 2 === 0 ? '#a2a2a2' : '#5e5e5e'
+        context.save()
+        context.translate(x + 6, y + 6)
+        context.rotate(Math.PI / 4)
+        context.fillRect(-8, -2.1, 16, 4.2)
+        context.restore()
+      }
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(18, 18)
+  texture.anisotropy = 8
+  return texture
+}
+
 function Wheel({ x, z, width, radius, tire, rim, brake, cover }: { x: number; z: number; width: number; radius: number; tire: THREE.Material; rim: THREE.Material; brake: THREE.Material; cover: THREE.Material }) {
   const aerodynamicMode = useF1Store((s) => s.aerodynamicMode)
   const windTunnel = useF1Store((s) => s.windTunnel)
@@ -329,14 +356,14 @@ function driverNumberTexture(number: number, foreground: string) {
 }
 
 function liveryMaterial(team: Team, color: string) {
-  const metallic = team.livery.finish === 'metallic' ? .38 : team.livery.finish === 'satin' ? .08 : .18
-  const roughness = team.livery.finish === 'satin' ? .34 : team.livery.finish === 'metallic' ? .2 : .18
+  const metallic = team.livery.finish === 'satin' ? team.materials.metallic * .55 : team.materials.metallic
+  const roughness = team.livery.finish === 'satin' ? Math.max(.3, team.materials.roughness) : team.materials.roughness
   return new THREE.MeshPhysicalMaterial({
     color,
     metalness: metallic,
     roughness,
-    clearcoat: team.livery.finish === 'satin' ? .58 : .92,
-    clearcoatRoughness: team.livery.finish === 'satin' ? .24 : .1,
+    clearcoat: team.livery.finish === 'satin' ? team.materials.clearcoat * .7 : team.materials.clearcoat,
+    clearcoatRoughness: team.livery.finish === 'satin' ? Math.max(.22, team.materials.clearcoatRoughness) : team.materials.clearcoatRoughness,
     transparent: true,
   })
 }
@@ -357,6 +384,7 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
   const frontFlaps = useRef<THREE.Group>(null)
   const logo = useTexture(team.logo)
   logo.colorSpace = THREE.SRGBColorSpace
+  const geometryProfile = team.geometry
   const driver = team.drivers.find((candidate) => candidate.id === selectedDriverId) ?? team.drivers[0]
   const numberTexture = useMemo(() => driverNumberTexture(driver.number, team.livery.accent2), [driver.number, team.livery.accent2])
   useEffect(() => () => numberTexture.dispose(), [numberTexture])
@@ -368,77 +396,87 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
   const accentPaint = useMemo(() => liveryMaterial(team, team.livery.accent), [team])
   const accent2Paint = useMemo(() => liveryMaterial(team, team.livery.accent2), [team])
   const haloPaint = useMemo(() => liveryMaterial(team, team.livery.halo), [team])
-  const carbon = useMemo(() => new THREE.MeshPhysicalMaterial({ color: '#111315', metalness: .03, roughness: .31, clearcoat: .32, clearcoatRoughness: .2, transparent: true }), [])
+  const carbonWeave = useMemo(() => carbonWeaveTexture(), [])
+  useEffect(() => () => carbonWeave.dispose(), [carbonWeave])
+  const carbon = useMemo(() => new THREE.MeshPhysicalMaterial({
+    color: '#0c0f11', metalness: .08, roughness: .3, clearcoat: .46, clearcoatRoughness: .18,
+    bumpMap: carbonWeave, bumpScale: .012, transparent: true,
+  }), [carbonWeave])
   const tire = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18191a', roughness: .9, metalness: 0 }), [])
   const rim = useMemo(() => new THREE.MeshStandardMaterial({ color: '#50575c', roughness: .28, metalness: .86 }), [])
   const brake = useMemo(() => new THREE.MeshStandardMaterial({ color: '#343a3e', roughness: .48, metalness: .72 }), [])
   const visor = useMemo(() => new THREE.MeshPhysicalMaterial({ color: '#071014', roughness: .08, metalness: .35, clearcoat: 1, clearcoatRoughness: .04 }), [])
   const helmet = useMemo(() => liveryMaterial(team, team.livery.accent2), [team])
-  const liveryPaints = useMemo(() => [
-    [paint, new THREE.Color(team.livery.body)],
-    [sidepodPaint, new THREE.Color(team.livery.sidepod)],
-    [engineCoverPaint, new THREE.Color(team.livery.engineCover)],
-    [wingPaint, new THREE.Color(team.livery.wing)],
-    [accentPaint, new THREE.Color(team.livery.accent)],
-    [accent2Paint, new THREE.Color(team.livery.accent2)],
-    [haloPaint, new THREE.Color(team.livery.halo)],
-  ] as const, [paint, sidepodPaint, engineCoverPaint, wingPaint, accentPaint, accent2Paint, haloPaint, team])
-  const pressurePaint = useMemo(() => new THREE.Color('#e95a2b'), [])
+  const liveryPaints = useMemo(() => {
+    const pressureTint = (base: string, pressureColor: string) => {
+      const baseColor = new THREE.Color(base)
+      return [baseColor, baseColor.clone().lerp(new THREE.Color(pressureColor), .34)] as const
+    }
+    return [
+      [paint, ...pressureTint(team.livery.body, '#ef8a3d')],
+      [sidepodPaint, ...pressureTint(team.livery.sidepod, '#2d78d2')],
+      [engineCoverPaint, ...pressureTint(team.livery.engineCover, '#285da8')],
+      [wingPaint, ...pressureTint(team.livery.wing, '#f04438')],
+      [accentPaint, ...pressureTint(team.livery.accent, '#55b9e8')],
+      [accent2Paint, ...pressureTint(team.livery.accent2, '#ffb24a')],
+      [haloPaint, ...pressureTint(team.livery.halo, '#4f7fb8')],
+    ] as const
+  }, [paint, sidepodPaint, engineCoverPaint, wingPaint, accentPaint, accent2Paint, haloPaint, team])
   const chassisStations = useMemo<LoftStation[]>(() => [
     { z: 2.18, width: .58, y: -.05, height: .42 },
-    { z: 1.35, width: .72, y: .01, height: .5 },
-    { z: .55, width: .82, y: .07, height: .59 },
-    { z: -.35, width: .86, y: .08, height: .62 },
-    { z: -1.25, width: .76, y: .08, height: .56 },
-    { z: -2.15, width: .62, y: .03, height: .46 },
-    { z: -3.05, width: .42, y: -.06, height: .3 },
-  ], [])
+    { z: 1.35, width: .72 * geometryProfile.sidepodWidth, y: .01, height: .5 },
+    { z: .55, width: .82 * geometryProfile.sidepodWidth, y: .07, height: .59 * geometryProfile.sidepodHeight },
+    { z: -.35, width: .86 * geometryProfile.sidepodWidth, y: .08, height: .62 * geometryProfile.sidepodHeight },
+    { z: -1.25, width: .76 / geometryProfile.cokeBottleTaper, y: .08, height: .56 },
+    { z: -2.15, width: .62 / geometryProfile.cokeBottleTaper, y: .03, height: .46 },
+    { z: -3.05, width: .42 / geometryProfile.cokeBottleTaper, y: -.06, height: .3 },
+  ], [geometryProfile])
   const engineCoverStations = useMemo<LoftStation[]>(() => [
     { z: -.05, width: .5, y: .31, height: .32 },
-    { z: -.72, width: .52, y: .39, height: .62 },
-    { z: -1.35, width: .46, y: .43, height: .86 },
-    { z: -2.05, width: .36, y: .34, height: .7 },
-    { z: -2.72, width: .24, y: .22, height: .48 },
+    { z: -.72, width: .52 / geometryProfile.cokeBottleTaper, y: .39, height: .62 * geometryProfile.engineCoverHeight },
+    { z: -1.35, width: .46 / geometryProfile.cokeBottleTaper, y: .43, height: .86 * geometryProfile.engineCoverHeight },
+    { z: -2.05, width: .36 / geometryProfile.cokeBottleTaper, y: .34, height: .7 * geometryProfile.engineCoverHeight },
+    { z: -2.72, width: .24 / geometryProfile.cokeBottleTaper, y: .22, height: .48 * geometryProfile.engineCoverHeight },
     { z: -3.16, width: .16, y: .08, height: .3 },
-  ], [])
+  ], [geometryProfile])
   const noseStations = useMemo<LoftStation[]>(() => [
-    { z: 4.22, width: .18, y: -.13, height: .16 },
-    { z: 3.78, width: .24, y: -.1, height: .19 },
-    { z: 3.18, width: .34, y: -.055, height: .25 },
-    { z: 2.6, width: .44, y: -.005, height: .31 },
+    { z: 4.22, width: .18 * geometryProfile.noseTipWidth, y: -.13, height: .16 * geometryProfile.noseCrown },
+    { z: 3.78, width: .24 * geometryProfile.noseTipWidth, y: -.1, height: .19 * geometryProfile.noseCrown },
+    { z: 3.18, width: .34 * geometryProfile.noseTipWidth, y: -.055, height: .25 * geometryProfile.noseCrown },
+    { z: 2.6, width: .44 * geometryProfile.noseTipWidth, y: -.005, height: .31 * geometryProfile.noseCrown },
     { z: 2.08, width: .58, y: .035, height: .39 },
     { z: 1.72, width: .66, y: .045, height: .43 },
-  ], [])
+  ], [geometryProfile])
   const sidepodStations = useMemo<LoftStation[]>(() => [
-    { z: .84, width: .54, y: .07, height: .38 },
-    { z: .55, width: .7, y: .035, height: .5 },
-    { z: .08, width: .82, y: -.005, height: .58 },
-    { z: -.55, width: .84, y: -.04, height: .55 },
-    { z: -1.25, width: .68, y: -.08, height: .46 },
-    { z: -1.92, width: .48, y: -.12, height: .34 },
-    { z: -2.45, width: .25, y: -.15, height: .22 },
-  ], [])
+    { z: .84, width: .54 * geometryProfile.sidepodWidth, y: .07, height: .38 * geometryProfile.sidepodHeight },
+    { z: .55, width: .7 * geometryProfile.sidepodWidth, y: .035, height: .5 * geometryProfile.sidepodHeight },
+    { z: .08, width: .82 * geometryProfile.sidepodWidth, y: -.005, height: .58 * geometryProfile.sidepodHeight },
+    { z: -.55, width: .84 * geometryProfile.sidepodWidth, y: -.04, height: .55 * geometryProfile.sidepodHeight },
+    { z: -1.25, width: .68 * geometryProfile.sidepodWidth / geometryProfile.cokeBottleTaper, y: -.08, height: .46 },
+    { z: -1.92, width: .48 * geometryProfile.sidepodWidth / geometryProfile.cokeBottleTaper, y: -.12, height: .34 },
+    { z: -2.45, width: .25 * geometryProfile.sidepodWidth / geometryProfile.cokeBottleTaper, y: -.15, height: .22 },
+  ], [geometryProfile])
   const sidepodUndercutStations = useMemo<LoftStation[]>(() => [
-    { z: .48, width: .34, y: -.21, height: .16 },
-    { z: -.1, width: .4, y: -.24, height: .2 },
-    { z: -.82, width: .34, y: -.27, height: .18 },
-    { z: -1.55, width: .22, y: -.29, height: .13 },
+    { z: .48, width: .34 / geometryProfile.sidepodUndercut, y: -.21 - .02 * geometryProfile.sidepodUndercut, height: .16 },
+    { z: -.1, width: .4 / geometryProfile.sidepodUndercut, y: -.24 - .025 * geometryProfile.sidepodUndercut, height: .2 },
+    { z: -.82, width: .34 / geometryProfile.sidepodUndercut, y: -.27 - .02 * geometryProfile.sidepodUndercut, height: .18 },
+    { z: -1.55, width: .22 / geometryProfile.sidepodUndercut, y: -.29, height: .13 },
     { z: -2.05, width: .12, y: -.3, height: .08 },
-  ], [])
+  ], [geometryProfile])
   const floorOutline = useMemo<[number, number][]>(() => [
-    [-.56, 3.2], [.56, 3.2], [1.16, 2.42], [1.34, 1.62], [1.36, -2.34],
-    [1.08, -3.38], [-1.08, -3.38], [-1.36, -2.34], [-1.34, 1.62], [-1.16, 2.42],
-  ], [])
+    [-.56, 3.2], [.56, 3.2], [1.16 * geometryProfile.floorEdgeWidth, 2.42], [1.34 * geometryProfile.floorEdgeWidth, 1.62], [1.36 * geometryProfile.floorEdgeWidth, -2.34],
+    [1.08 * geometryProfile.floorEdgeWidth, -3.38], [-1.08 * geometryProfile.floorEdgeWidth, -3.38], [-1.36 * geometryProfile.floorEdgeWidth, -2.34], [-1.34 * geometryProfile.floorEdgeWidth, 1.62], [-1.16 * geometryProfile.floorEdgeWidth, 2.42],
+  ], [geometryProfile])
   const sharkFin = useMemo<[number, number][]>(() => [
-    [-.5, .72], [-1.05, 1.16], [-1.72, 1.11], [-2.5, .87], [-2.95, .52], [-2.05, .43], [-.82, .48],
-  ], [])
+    [-.5, .72 * geometryProfile.sharkFinHeight], [-1.05, 1.16 * geometryProfile.sharkFinHeight], [-1.72, 1.11 * geometryProfile.sharkFinHeight], [-2.5, .87 * geometryProfile.sharkFinHeight], [-2.95, .52], [-2.05, .43], [-.82, .48],
+  ], [geometryProfile])
 
   useFrame((_, dt) => {
     const opacity = xray ? .2 : 1
-    for (const [material, baseColor] of liveryPaints) {
+    for (const [material, baseColor, pressureColor] of liveryPaints) {
       material.opacity = THREE.MathUtils.damp(material.opacity, opacity, 5, dt)
       material.depthWrite = !xray
-      material.color.lerp(pressure && windTunnel && windSpeed > 0 ? pressurePaint : baseColor, 1 - Math.exp(-dt * 3))
+      material.color.lerp(pressure && windTunnel && windSpeed > 0 ? pressureColor : baseColor, 1 - Math.exp(-dt * 3))
     }
     carbon.opacity = THREE.MathUtils.damp(carbon.opacity, xray ? .42 : 1, 5, dt)
     carbon.depthWrite = !xray
@@ -477,6 +515,28 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
       <group>
         <LoftBody stations={chassisStations} material={paint} radialSegments={40} />
         <LoftBody stations={engineCoverStations} material={engineCoverPaint} radialSegments={40} />
+        {team.id === 'ferrari' && [1, -1].map((side) => (
+          <RoundedBox
+            key={`ferrari-engine-panel-${side}`}
+            args={[.018, .34, 1.72]}
+            radius={.008}
+            smoothness={4}
+            position={[side * .405, .49, -1.18]}
+            rotation={[0, side * .018, side * -.035]}
+            material={accent2Paint}
+          />
+        ))}
+        {team.id === 'redbull' && [1, -1].map((side) => (
+          <RoundedBox
+            key={`redbull-heritage-panel-${side}`}
+            args={[.018, .24, 1.42]}
+            radius={.008}
+            smoothness={4}
+            position={[side * .41, .46, -1.28]}
+            rotation={[0, side * .018, side * -.03]}
+            material={wingPaint}
+          />
+        ))}
         <mesh position={[0, .37, .42]} rotation={[Math.PI / 2, 0, 0]} scale={[.9, .38, 1.22]} castShadow material={carbon}><capsuleGeometry args={[.31, .62, 12, 32]} /></mesh>
         <mesh position={[0, .46, .52]} scale={[.78, .27, 1.12]} material={carbon}><sphereGeometry args={[.31, 32, 18, 0, Math.PI * 2, 0, Math.PI / 2]} /></mesh>
         <mesh position={[0, .66, .43]} scale={[.75, .8, .88]} castShadow material={helmet}><sphereGeometry args={[.225, 32, 20]} /></mesh>
@@ -488,6 +548,10 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
         <VerticalPlate points={sharkFin} thickness={.028} material={engineCoverPaint} />
         <mesh position={[0, .18, -3.09]} rotation={[Math.PI / 2, 0, 0]} material={rim} castShadow><cylinderGeometry args={[.078, .09, .28, 28]} /></mesh>
         <RoundedBox args={[.055, .018, 1.72]} radius={.008} smoothness={4} position={[0, .64, -1.1]} rotation={[.025, 0, 0]} material={accentPaint} />
+        {[1, -1].map((side) => <mesh key={`engine-logo-${side}`} position={[side * .405, .61, -1.36]} rotation={[0, side > 0 ? Math.PI / 2 : -Math.PI / 2, 0]}>
+          <planeGeometry args={[.82, .24]} />
+          <meshBasicMaterial map={logo} transparent alphaTest={.08} toneMapped={false} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>)}
         {[1, -1].map((side) => <group key={`mirror-${side}`}>
           <Strut start={new THREE.Vector3(side * .48, .48, .58)} end={new THREE.Vector3(side * .92, .62, .62)} material={carbon} />
           <RoundedBox args={[.28, .105, .17]} radius={.048} smoothness={6} position={[side * .99, .63, .64]} rotation={[0, side * .14, 0]} material={paint} castShadow />
@@ -514,10 +578,10 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
       {[1, -1].map((side) => <group key={side} onClick={click('sidepods')} position={[lateralExplode(side), 0, 0]}>
         <LoftBody stations={sidepodStations} material={sidepodPaint} position={[side * .93, 0, 0]} radialSegments={34} />
         <LoftBody stations={sidepodUndercutStations} material={carbon} position={[side * .76, 0, 0]} radialSegments={28} />
-        <mesh position={[side * .93, .105, .861]} scale={[1.08, .5, 1]} material={carbon} castShadow>
+        <mesh position={[side * .93, .105, .861]} scale={[1.08 * geometryProfile.sidepodInletScale, .5 * geometryProfile.sidepodHeight, 1]} material={carbon} castShadow>
           <ringGeometry args={[.19, .31, 56]} />
         </mesh>
-        <mesh position={[side * .93, .105, .855]} scale={[1.08, .5, 1]} material={visor}>
+        <mesh position={[side * .93, .105, .855]} scale={[1.08 * geometryProfile.sidepodInletScale, .5 * geometryProfile.sidepodHeight, 1]} material={visor}>
           <circleGeometry args={[.19, 56]} />
         </mesh>
         <Airfoil span={.68} chord={.23} thickness={.022} camber={.012} position={[side * .93, .255, .72]} rotation={[-.08, 0, side * -.03]} material={accentPaint} />
@@ -534,10 +598,11 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
       </group>)}
 
       <group onClick={click('frontWing')} position={[0, 0, axialExplode(1)]}>
-        <Airfoil span={3.62} chord={.58} thickness={.052} camber={.018} position={[0,-.32,4.72]} rotation={[-.025,0,0]} material={wingPaint} />
+        <Airfoil span={3.62} chord={.58 * geometryProfile.frontWingChord} thickness={.052} camber={.018 * geometryProfile.frontWingCamber} position={[0,-.32,4.72]} rotation={[-.025,0,0]} material={wingPaint} />
         <group ref={frontFlaps} position={[0, -.16, 4.48]}>
-          <Airfoil span={3.5} chord={.43} thickness={.042} camber={.025} position={[0,0,0]} rotation={[-.08,0,0]} material={wingPaint} />
-          <Airfoil span={3.34} chord={.36} thickness={.035} camber={.03} position={[0,.13,-.29]} rotation={[-.12,0,0]} material={accent2Paint} />
+          <Airfoil span={3.5} chord={.43 * geometryProfile.frontWingChord} thickness={.042} camber={.025 * geometryProfile.frontWingCamber} position={[0,0,0]} rotation={[-.08,0,0]} material={wingPaint} />
+          <Airfoil span={3.34} chord={.36 * geometryProfile.frontWingChord} thickness={.035} camber={.03 * geometryProfile.frontWingCamber} position={[0,.13,-.29]} rotation={[-.12,0,0]} material={wingPaint} />
+          <RoundedBox args={[3.06, .014, .045]} radius={.006} smoothness={3} position={[0, .15, -.48]} rotation={[-.12, 0, 0]} material={accentPaint} />
         </group>
         <RoundedBox args={[.018, .42, .58]} radius={.012} smoothness={4} position={[1.81, -.14, 4.54]} rotation={[0, .035, -.025]} material={carbon} />
         <RoundedBox args={[.018, .42, .58]} radius={.012} smoothness={4} position={[-1.81, -.14, 4.54]} rotation={[0, -.035, .025]} material={carbon} />
@@ -546,20 +611,26 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
       </group>
 
       <group onClick={click('rearWing')} position={[0, 0, axialExplode(-1)]}>
-        <Airfoil span={2.28} chord={.36} thickness={.045} camber={.018} position={[0,.24,-3.76]} rotation={[.06,0,0]} material={wingPaint} />
-        <Airfoil span={2.72} chord={.46} thickness={.05} camber={.035} position={[0,.78,-4.15]} rotation={[.09,0,0]} material={wingPaint} />
+        <Airfoil span={2.28 * geometryProfile.rearWingSpan} chord={.36} thickness={.045} camber={.018 * geometryProfile.rearWingCamber} position={[0,.24,-3.76]} rotation={[.06,0,0]} material={wingPaint} />
+        <Airfoil span={2.72 * geometryProfile.rearWingSpan} chord={.46} thickness={.05} camber={.035 * geometryProfile.rearWingCamber} position={[0,.78,-4.15]} rotation={[.09,0,0]} material={wingPaint} />
         <group ref={rearFlaps} position={[0, 1.0, -4.08]}>
-          <Airfoil span={2.62} chord={.43} thickness={.042} camber={.04} position={[0,0,0]} rotation={[.1,0,0]} material={wingPaint} />
-          <Airfoil span={2.52} chord={.36} thickness={.036} camber={.045} position={[0,.2,-.08]} rotation={[.14,0,0]} material={accent2Paint} />
+          <Airfoil span={2.62 * geometryProfile.rearWingSpan} chord={.43} thickness={.042} camber={.04 * geometryProfile.rearWingCamber} position={[0,0,0]} rotation={[.1,0,0]} material={wingPaint} />
+          <Airfoil span={2.52 * geometryProfile.rearWingSpan} chord={.36} thickness={.036} camber={.045 * geometryProfile.rearWingCamber} position={[0,.2,-.08]} rotation={[.14,0,0]} material={wingPaint} />
+          <RoundedBox args={[2.28 * geometryProfile.rearWingSpan, .014, .04]} radius={.006} smoothness={3} position={[0, .225, -.245]} rotation={[.14, 0, 0]} material={accentPaint} />
         </group>
         <RoundedBox args={[.018, 1.06, .46]} radius={.012} smoothness={4} position={[1.35, .67, -4.07]} rotation={[.01, .02, -.025]} material={carbon} />
         <RoundedBox args={[.018, 1.06, .46]} radius={.012} smoothness={4} position={[-1.35, .67, -4.07]} rotation={[.01, -.02, .025]} material={carbon} />
         <RoundedBox args={[.13, .88, .11]} radius={.025} smoothness={4} position={[0, .28, -3.83]} material={carbon} />
+        <mesh position={[0, .01, -4.38]} material={carbon} castShadow><boxGeometry args={[.28, .11, .22]} /></mesh>
+        <mesh position={[0, .015, -4.505]}>
+          <boxGeometry args={[.16, .045, .012]} />
+          <meshBasicMaterial color="#ff2b20" toneMapped={false} />
+        </mesh>
       </group>
 
       <group onClick={click('diffuser')} position={[0, exploded ? -.25 : 0, axialExplode(-1, .9)]}>
-        <mesh position={[0, -.39, -3.75]} rotation={[.24, 0, 0]} material={carbon}><boxGeometry args={[2.3, .1, 1.18]} /></mesh>
-        {[-.82, -.42, 0, .42, .82].map((x) => <mesh key={x} position={[x, -.29, -3.85]} rotation={[.24, 0, 0]} material={carbon}><boxGeometry args={[.025, .3, 1.0]} /></mesh>)}
+        <mesh position={[0, -.39, -3.75]} rotation={[.24 * geometryProfile.diffuserExpansion, 0, 0]} material={carbon}><boxGeometry args={[2.3 * geometryProfile.diffuserExpansion, .1, 1.18]} /></mesh>
+        {[-.82, -.42, 0, .42, .82].map((x) => <mesh key={x} position={[x * geometryProfile.diffuserExpansion, -.29, -3.85]} rotation={[.24 * geometryProfile.diffuserExpansion, 0, 0]} material={carbon}><boxGeometry args={[.025, .3, 1.0]} /></mesh>)}
       </group>
 
       <group onClick={click('halo')} position={[0, exploded ? .85 : 0, 0]}>
