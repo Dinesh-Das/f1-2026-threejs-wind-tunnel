@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { aeroProxyEnvelope, aeroProxyLoads, F1_2026_REFERENCE, freeStreamData, reynoldsNumber, wheelKinematics } from '../src/data/f1Reference'
@@ -56,6 +56,12 @@ describe('aerodynamic reference math', () => {
 })
 
 describe('2026 team dataset', () => {
+  it('ships explicit attribution for the shared chassis', () => {
+    const licensePath = join(process.cwd(), 'public', 'assets', 'cars', 'base', 'LICENSE.txt')
+    expect(existsSync(licensePath)).toBe(true)
+    expect(readFileSync(licensePath, 'utf8')).toMatch(/CC-BY-4\.0|Attribution 4\.0/i)
+  })
+
   it('contains 11 unique constructors with two drivers and local logo assets', () => {
     expect(teams).toHaveLength(11)
     expect(new Set(teams.map((team) => team.id)).size).toBe(11)

@@ -152,9 +152,16 @@ function measuredWheelbase(scene: THREE.Object3D) {
   return wheelbase > 0.001 ? wheelbase : null
 }
 
+function declaredPartFor(object: THREE.Object3D) {
+  const declared = object.userData.f1Part ?? object.userData.part
+  return typeof declared === 'string' && declared.trim() ? declared.trim() : null
+}
+
 function logicalPartFor(object: THREE.Object3D, team: Team, root: THREE.Object3D) {
   let current: THREE.Object3D | null = object
   while (current && current !== root.parent) {
+    const declared = declaredPartFor(current)
+    if (declared) return declared
     const name = current.name.toUpperCase()
     for (const [part, aliases] of Object.entries(team.meshMap)) {
       if (aliases.some((alias) => name === alias.toUpperCase() || name.includes(alias.toUpperCase()))) return part
@@ -174,7 +181,10 @@ function disposeScene(scene: THREE.Object3D) {
   })
 }
 
-function materialRole(name: string): MaterialRole {
+function materialRole(name: string, declared?: unknown): MaterialRole {
+  if (typeof declared === 'string' && ['body','secondary','accent','carbon','tire','rim','glass','interior','generic'].includes(declared)) {
+    return declared as MaterialRole
+  }
   const id = name.toLowerCase()
   if (/wheel_tires|tyre|tire/.test(id)) return 'tire'
   if (/rim/.test(id)) return 'rim'
@@ -208,14 +218,17 @@ function pressureColorFor(role: MaterialRole) {
   return '#ef5c3d'
 }
 
-function toPhysicalMaterial(source: THREE.Material, team: Team) {
+function toPhysicalMaterial(source: THREE.Material, team: Team, preserveSourceColorMap: boolean) {
   const standard = source instanceof THREE.MeshStandardMaterial ? source : null
-  const role = materialRole(source.name)
+  const role = materialRole(source.name, source.userData.f1Role)
   const paint = role === 'body' || role === 'secondary' || role === 'accent' || role === 'generic'
   const material = new THREE.MeshPhysicalMaterial({
     name: source.name,
     color: new THREE.Color(roleColor(team, role)),
-    map: standard?.map ?? null,
+    // A shared chassis is intentionally reskinned rather than reproducing a
+    // source livery. Preserve geometric/PBR detail maps, but strip source
+    // base-color artwork unless this is an explicitly authorized team asset.
+    map: preserveSourceColorMap ? standard?.map ?? null : null,
     normalMap: standard?.normalMap ?? null,
     roughnessMap: standard?.roughnessMap ?? null,
     metalnessMap: standard?.metalnessMap ?? null,
@@ -232,6 +245,7 @@ function toPhysicalMaterial(source: THREE.Material, team: Team) {
     clearcoatRoughness: paint ? team.materials.clearcoatRoughness : .28,
     envMapIntensity: role === 'tire' ? .35 : role === 'carbon' ? 1.1 : 1.45,
   })
+  material.userData = { ...source.userData }
   if (role === 'glass') {
     material.transmission = .12
     material.ior = 1.45
@@ -309,8 +323,9 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
           object.geometry = object.geometry.clone()
           object.castShadow = true
           object.receiveShadow = true
-          if (Array.isArray(object.material)) object.material = object.material.map((material) => toPhysicalMaterial(material, currentTeam).material)
-          else object.material = toPhysicalMaterial(object.material, currentTeam).material
+          const preserveSourceColorMap = modelUrl !== SHARED_BASE_MODEL
+          if (Array.isArray(object.material)) object.material = object.material.map((material) => toPhysicalMaterial(material, currentTeam, preserveSourceColorMap).material)
+          else object.material = toPhysicalMaterial(object.material, currentTeam, preserveSourceColorMap).material
         })
 
         suppressExtremeGeometryOutliers(scene)
@@ -348,7 +363,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
           if (!(object instanceof THREE.Mesh)) return
           const meshMaterials = Array.isArray(object.material) ? object.material : [object.material]
           const firstPhysical = meshMaterials.find((material): material is THREE.MeshPhysicalMaterial => material instanceof THREE.MeshPhysicalMaterial)
-          const role = firstPhysical ? materialRole(firstPhysical.name) : null
+          const role = firstPhysical ? materialRole(firstPhysical.name, firstPhysical.userData.f1Role) : null
           const part = logicalPartFor(object, currentTeam, scene) ?? inferredPartFor(object, scene, role)
           const worldPosition = object.getWorldPosition(new THREE.Vector3()).sub(rootPosition)
           const basePosition = object.position.clone()
@@ -360,7 +375,11 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
             basePosition,
             explodeOffset,
             explodedPosition: basePosition.clone().add(explodeOffset),
-            isAeroFlap: (part === 'rearWing' || part === 'frontWing') && (/FLAP|DRS|ACTIVE/i.test(object.name) || modelUrl === SHARED_BASE_MODEL),
+            isAeroFlap: (part === 'rearWing' || part === 'frontWing') && (
+              object.userData.f1ActiveAero === true
+              || /FLAP|DRS|ACTIVE/i.test(object.name)
+              || modelUrl === SHARED_BASE_MODEL
+            ),
             baseRotationX: object.rotation.x,
           })
           meshMaterials.forEach((material) => {
@@ -368,9 +387,9 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
             material.transparent = true
             materialRecords.push({
               material,
-              role: materialRole(material.name),
-              baseColor: new THREE.Color(roleColor(currentTeam, materialRole(material.name))),
-              pressureColor: new THREE.Color(pressureColorFor(materialRole(material.name))),
+              role: materialRole(material.name, material.userData.f1Role),
+              baseColor: new THREE.Color(roleColor(currentTeam, materialRole(material.name, material.userData.f1Role))),
+              pressureColor: new THREE.Color(pressureColorFor(materialRole(material.name, material.userData.f1Role))),
               baseEmissive: material.emissive.clone(),
               baseEmissiveIntensity: material.emissiveIntensity,
               baseOpacity: material.opacity,

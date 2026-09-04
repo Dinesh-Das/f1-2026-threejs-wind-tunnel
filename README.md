@@ -52,7 +52,9 @@ Only add third-party logos, sponsor artwork, photography, driver imagery, audio,
 
 All normal teams currently use the same shared glTF chassis. `src/cars/TeamCar.tsx` loads the model with `GLTFLoader`, `DRACOLoader`, and `KTX2Loader`, clones its geometry/materials, converts visible surfaces to `MeshPhysicalMaterial`, normalizes the car to the reference wheelbase, and infers component roles from the loaded hierarchy.
 
-Switching teams does not reload the shared glTF. Team colors and physical-material properties are updated in place, so the 11-team selector behaves like a data-driven livery/configuration switch over one base mesh.
+Switching teams does not reload the shared glTF. Team colors and physical-material properties are updated in place, so the 11-team selector behaves like a data-driven livery/configuration switch over one base mesh. Shared-model base-color textures are intentionally discarded during reskinning so sponsor/livery artwork from a source asset is not accidentally reproduced; normal, roughness, metalness, AO, and other PBR detail maps are retained.
+
+Production replacement GLBs can optionally expose `extras.f1Part`, `extras.f1ActiveAero`, and material `extras.f1Role` metadata. The loader uses those declarations before falling back to hierarchy/name inference, which makes a properly authored high-detail chassis deterministic to inspect and animate without hardcoding vendor node names.
 
 Team presentation data lives in `src/data/teams.ts`. The bundled liveries are intentionally stylized color treatments; they are not claimed to be exact replicas of 2026 paint, sponsor placement, or confidential geometry.
 
