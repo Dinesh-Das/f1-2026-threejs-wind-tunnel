@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { F1_2026_REFERENCE, freeStreamData, wheelKinematics } from '../src/data/f1Reference'
+import { aeroProxyLoads, F1_2026_REFERENCE, freeStreamData, wheelKinematics } from '../src/data/f1Reference'
 import { teams } from '../src/data/teams'
 import { useF1Store } from '../src/store/useF1Store'
 
@@ -16,6 +16,20 @@ describe('aerodynamic reference math', () => {
     const wheels = wheelKinematics(300)
     expect(wheels.frontRpm).toBeCloseTo(2257.6, 0)
     expect(wheels.rearRpm).toBeCloseTo(2241.7, 0)
+  })
+
+  it('scales proxy aerodynamic loads with velocity squared', () => {
+    const slow = aeroProxyLoads(150, 'Corner')
+    const fast = aeroProxyLoads(300, 'Corner')
+    expect(fast.dragN / slow.dragN).toBeCloseTo(4, 5)
+    expect(fast.downforceN / slow.downforceN).toBeCloseTo(4, 5)
+  })
+
+  it('reduces proxy drag and downforce in straight-line active aero state', () => {
+    const corner = aeroProxyLoads(300, 'Corner')
+    const straight = aeroProxyLoads(300, 'Straight')
+    expect(straight.dragN).toBeLessThan(corner.dragN)
+    expect(straight.downforceN).toBeLessThan(corner.downforceN)
   })
 
   it('keeps the public 2026 proxy dimensions internally sane', () => {

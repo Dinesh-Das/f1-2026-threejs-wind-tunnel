@@ -40,6 +40,10 @@ type State = {
 }
 
 const savedTeam = typeof localStorage !== 'undefined' ? localStorage.getItem('f1-2026-team') : null
+const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+const autoEnter = queryParams?.get('autostart') === '1'
+const autoWindTunnel = queryParams?.get('windtunnel') === '1'
+const autoAerodynamicMode = autoWindTunnel || queryParams?.get('aero') === '1'
 const prefersReducedMotion = typeof window !== 'undefined'
   ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
   : false
@@ -58,7 +62,7 @@ function normalizePatch(patch: Partial<Omit<State, 'set'>>) {
 }
 
 export const useF1Store = create<State>((set) => ({
-  entered: false,
+  entered: autoEnter,
   selectedTeamId: savedTeam || 'mclaren',
   selectedDriverId: 'norris',
   compareTeamId: 'ferrari',
@@ -66,9 +70,9 @@ export const useF1Store = create<State>((set) => ({
   selectedComponent: null,
   cameraPreset: 'hero',
   environment: 'F1 Studio',
-  quality: 'HIGH',
-  aerodynamicMode: false,
-  windTunnel: false,
+  quality: 'ULTRA',
+  aerodynamicMode: autoAerodynamicMode,
+  windTunnel: autoWindTunnel,
   windSpeed: 250,
   streamlines: true,
   streamlineDensity: 'Medium',

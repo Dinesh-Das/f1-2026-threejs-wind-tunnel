@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { AdaptiveDpr } from '@react-three/drei'
-import { EffectComposer, Bloom, SMAA } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, N8AO, SMAA } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { CameraRig } from './CameraRig'
 import { Lighting } from './Lighting'
@@ -15,10 +15,14 @@ export function Experience() {
   return (
     <Canvas
       className="f1-canvas"
-      dpr={quality === 'ULTRA' ? [1, 2] : quality === 'HIGH' ? [1, 1.6] : [0.8, 1.25]}
-      gl={{ antialias: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
+      dpr={quality === 'ULTRA' ? [1.5, 2.25] : quality === 'HIGH' ? [1.25, 2] : [1, 1.5]}
+      gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
       shadows={quality !== 'LOW'}
       camera={{ position: [7.2, 2.8, 8.8], fov: 34, near: .05, far: 120 }}
+      onCreated={({ gl }) => {
+        gl.toneMappingExposure = 1.08
+        gl.shadowMap.type = THREE.PCFSoftShadowMap
+      }}
     >
       <color attach="background" args={[aero ? '#04080a' : '#050607']} />
       <fog attach="fog" args={[aero ? '#04080a' : '#050607', 14, 34]} />
@@ -28,7 +32,11 @@ export function Experience() {
       <CarScene />
       <CameraRig />
       <AdaptiveDpr pixelated />
-      {quality !== 'LOW' && <EffectComposer multisampling={0}><SMAA /><Bloom intensity={quality === 'ULTRA' ? .26 : .16} luminanceThreshold={1.1} mipmapBlur /></EffectComposer>}
+      {quality !== 'LOW' && <EffectComposer multisampling={quality === 'ULTRA' ? 4 : 0}>
+        <N8AO quality={quality === 'ULTRA' ? 'high' : 'medium'} aoRadius={.7} distanceFalloff={.8} intensity={1.35} halfRes={quality !== 'ULTRA'} screenSpaceRadius={false} />
+        <SMAA />
+        <Bloom intensity={quality === 'ULTRA' ? .18 : .11} luminanceThreshold={1.35} mipmapBlur />
+      </EffectComposer>}
     </Canvas>
   )
 }

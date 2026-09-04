@@ -1,5 +1,5 @@
 import { teams, teamById } from '../../data/teams'
-import { F1_2026_REFERENCE, freeStreamData, wheelKinematics } from '../../data/f1Reference'
+import { aeroProxyLoads, F1_2026_REFERENCE, freeStreamData, wheelKinematics } from '../../data/f1Reference'
 import { useF1Store } from '../../store/useF1Store'
 
 const copy: Record<string, [string, string, ...string[]]> = {
@@ -22,6 +22,7 @@ export function TechnicalPanel() {
   const activeWindSpeed = s.windTunnel ? s.windSpeed : 0
   const freeStream = freeStreamData(activeWindSpeed)
   const wheels = wheelKinematics(activeWindSpeed)
+  const proxyLoads = aeroProxyLoads(activeWindSpeed, s.activeAero && s.activeAeroState === 'Straight' ? 'Straight' : 'Corner')
   return (
     <aside className="technical-panel">
       <div className="telemetry-head"><span>CAR / 2026</span><span>INTERACTIVE 3D</span></div>
@@ -36,6 +37,8 @@ export function TechnicalPanel() {
         <div className="data-truth"><b>AIR DENSITY</b><span>{F1_2026_REFERENCE.airDensityKgM3.toFixed(3)} kg/m³ assumed</span></div>
         <div className="data-truth"><b>ROLLING ROAD</b><span>{s.windTunnel && s.windSpeed > 0 ? 'MATCHED TO FREE STREAM' : 'STOPPED'}</span></div>
         <div className="data-truth"><b>WHEEL SPEED</b><span>F {Math.round(wheels.frontRpm)} · R {Math.round(wheels.rearRpm)} rpm derived</span></div>
+        <div className="data-truth"><b>DRAG LOAD</b><span>{(proxyLoads.dragN / 1000).toFixed(1)} kN proxy · Cd {proxyLoads.dragCoefficient.toFixed(2)}</span></div>
+        <div className="data-truth"><b>DOWNFORCE</b><span>{(proxyLoads.downforceN / 1000).toFixed(1)} kN proxy · Cl {proxyLoads.downforceCoefficient.toFixed(2)}</span></div>
       </>}
       <div className="data-truth"><b>MODEL STATUS</b><span>{team.reference_based_approximation ? '2026 REGULATION PROXY · OFFICIAL TEAM MARKS' : 'AUTHORIZED PRODUCTION ASSET'}</span></div>
     </aside>

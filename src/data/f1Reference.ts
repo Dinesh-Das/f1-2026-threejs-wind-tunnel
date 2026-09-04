@@ -9,6 +9,14 @@ export const F1_2026_REFERENCE = {
   rearTyreDiameterM: 0.71,
   frontWingNarrowingM: 0.1,
   airDensityKgM3: 1.225,
+  // Public team-specific coefficients are not available. These values are an
+  // engineering proxy used only to make the simulator respond with realistic
+  // q = 1/2 rho v^2 load scaling rather than claiming measured 2026 telemetry.
+  proxyFrontalAreaM2: 1.45,
+  proxyDragCoefficientCorner: .92,
+  proxyDragCoefficientStraight: .70,
+  proxyDownforceCoefficientCorner: 2.8,
+  proxyDownforceCoefficientStraight: 2.0,
   sceneUnitsPerMetre: 2,
 } as const
 
@@ -29,5 +37,25 @@ export function wheelKinematics(windSpeedKmh: number) {
   return {
     frontRpm: rpmForDiameter(F1_2026_REFERENCE.frontTyreDiameterM),
     rearRpm: rpmForDiameter(F1_2026_REFERENCE.rearTyreDiameterM),
+  }
+}
+
+export function aeroProxyLoads(windSpeedKmh: number, activeAeroState: 'Corner' | 'Straight') {
+  const { speedMs } = freeStreamData(windSpeedKmh)
+  const dynamicPressurePa = .5 * F1_2026_REFERENCE.airDensityKgM3 * speedMs * speedMs
+  const straight = activeAeroState === 'Straight'
+  const dragCoefficient = straight
+    ? F1_2026_REFERENCE.proxyDragCoefficientStraight
+    : F1_2026_REFERENCE.proxyDragCoefficientCorner
+  const downforceCoefficient = straight
+    ? F1_2026_REFERENCE.proxyDownforceCoefficientStraight
+    : F1_2026_REFERENCE.proxyDownforceCoefficientCorner
+  const area = F1_2026_REFERENCE.proxyFrontalAreaM2
+
+  return {
+    dragCoefficient,
+    downforceCoefficient,
+    dragN: dynamicPressurePa * dragCoefficient * area,
+    downforceN: dynamicPressurePa * downforceCoefficient * area,
   }
 }
