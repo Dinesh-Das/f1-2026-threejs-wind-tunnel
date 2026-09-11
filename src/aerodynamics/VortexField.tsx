@@ -25,6 +25,6 @@ export function VortexField() {
       const yawDrift = scenario.yaw * i * .014
       return new THREE.Vector3(origin[0]+Math.cos(t)*(idx<2?r:-r)+yawDrift,origin[1]+Math.sin(t)*r,origin[2]-i*.06)
     })
-    return <Line key={idx} points={pts} color="#b873ff" lineWidth={1.1 + strength*.35} transparent opacity={.16 + windRatio*.5*scenario.vortex} />
+    return <Line key={idx} points={pts} color="#aaa6bb" lineWidth={.8 + strength*.22} transparent opacity={.1 + windRatio*.32*scenario.vortex} />
   })}</group>
 }

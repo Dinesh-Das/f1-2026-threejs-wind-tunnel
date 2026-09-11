@@ -6,7 +6,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useF1Store, type CameraPreset } from '../store/useF1Store'
 
 const presets: Record<CameraPreset, [THREE.Vector3, THREE.Vector3]> = {
-  hero: [new THREE.Vector3(7.4,2.7,8.6),new THREE.Vector3(0,.25,0)],
+  hero: [new THREE.Vector3(10,2.65,12),new THREE.Vector3(0,.12,-.2)],
   front: [new THREE.Vector3(0,1.05,9.8),new THREE.Vector3(0,.1,0)],
   rear: [new THREE.Vector3(0,1.1,-9.8),new THREE.Vector3(0,.2,0)],
   left: [new THREE.Vector3(-10,1.25,.2),new THREE.Vector3(0,.15,0)],
@@ -19,15 +19,15 @@ const presets: Record<CameraPreset, [THREE.Vector3, THREE.Vector3]> = {
   cockpit: [new THREE.Vector3(2.6,2.2,1.2),new THREE.Vector3(0,.62,.45)],
   suspension: [new THREE.Vector3(4,.4,3.5),new THREE.Vector3(1.25,.1,2.5)],
   onboard: [new THREE.Vector3(0,1.16,.5),new THREE.Vector3(0,.5,5.5)],
-  engineering: [new THREE.Vector3(8,4,8),new THREE.Vector3(0,0,0)],
+  engineering: [new THREE.Vector3(10.4,4.25,11.7),new THREE.Vector3(0,.02,-.25)],
 }
 
 const aerodynamicHero: [THREE.Vector3, THREE.Vector3] = [
-  // Inspection camera lives inside the test section. Keeping it downstream of
-  // the contraction prevents the tunnel structure from occluding the car while
-  // retaining a realistic three-quarter engineering view.
-  new THREE.Vector3(8.55, 2.95, 4.55),
-  new THREE.Vector3(-.58, -.02, -.38),
+  // Observation-camera framing from outside the transparent test-section wall.
+  // The longer working distance keeps the complete car and wake readable while
+  // avoiding the contraction and downstream tunnel hardware.
+  new THREE.Vector3(20, 4.3, -2.8),
+  new THREE.Vector3(0, -.02, 1.2),
 ]
 
 const compareHero: [THREE.Vector3, THREE.Vector3] = [
@@ -61,14 +61,20 @@ export function CameraRig() {
     if (!controls.current) return
     let pos = desired[0]
     let target = desired[1]
+    let targetFov = !selected && preset === 'hero' && aerodynamicMode ? 35 : 34
     if (cinematic) {
       elapsed.current += dt
       const p = cinematicSteps[Math.floor((elapsed.current / 3) % cinematicSteps.length)]
       pos = presets[p][0]; target = presets[p][1]
+      targetFov = 34
       if (elapsed.current > 24) set({ cinematic: false, cameraPreset: 'hero' })
     }
     const t = reduced ? 1 : 1 - Math.exp(-dt * 3.2)
     camera.position.lerp(pos, t)
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, t)
+      camera.updateProjectionMatrix()
+    }
     controls.current.target.lerp(target, t)
     controls.current.update()
   })

@@ -8,16 +8,16 @@ export function GarageEnvironment() {
   const quality = useF1Store((s) => s.quality)
   if (aero || floorView) return null
   return <group>
-    <mesh position={[0,-.52,0]} receiveShadow><cylinderGeometry args={[5.4,5.6,.18,128]} /><meshPhysicalMaterial color="#171a1d" metalness={.72} roughness={.17} clearcoat={.58} clearcoatRoughness={.18} /></mesh>
+    <mesh position={[0,-.52,0]} receiveShadow><cylinderGeometry args={[5.4,5.6,.18,128]} /><meshPhysicalMaterial color="#111416" metalness={.58} roughness={.24} clearcoat={.42} clearcoatRoughness={.2} /></mesh>
     <mesh position={[0,-.64,0]} rotation={[-Math.PI/2,0,0]} receiveShadow>
       <planeGeometry args={[45,45]} />
-      <MeshReflectorMaterial resolution={quality === 'ULTRA' ? 1024 : 512} blur={[420, 110]} mixBlur={1} mixStrength={quality === 'ULTRA' ? .72 : .52} roughness={.42} depthScale={.7} minDepthThreshold={.7} maxDepthThreshold={1.6} color="#080a0c" metalness={.42} mirror={.18} />
+      <MeshReflectorMaterial resolution={quality === 'ULTRA' ? 1024 : 512} blur={[520, 150]} mixBlur={1} mixStrength={quality === 'ULTRA' ? .6 : .44} roughness={.5} depthScale={.62} minDepthThreshold={.72} maxDepthThreshold={1.55} color="#060809" metalness={.34} mirror={.1} />
     </mesh>
-    <Grid position={[0,-.635,0]} args={[40,40]} cellSize={1} cellThickness={.2} cellColor="#353a40" sectionSize={5} sectionThickness={.6} sectionColor="#525963" fadeDistance={28} fadeStrength={1.5} />
+    <Grid position={[0,-.635,0]} args={[40,40]} cellSize={1} cellThickness={.16} cellColor="#252a2e" sectionSize={5} sectionThickness={.42} sectionColor="#383f44" fadeDistance={25} fadeStrength={1.7} />
     <mesh position={[0,3.15,-9]} receiveShadow><boxGeometry args={[14,6.4,.15]} /><meshStandardMaterial color="#111416" metalness={.36} roughness={.5} /></mesh>
     {[-4.4, -2.2, 0, 2.2, 4.4].map((x) => <mesh key={`wall-${x}`} position={[x,3.15,-8.9]}><boxGeometry args={[.035,5.7,.08]} /><meshStandardMaterial color="#343a3e" metalness={.82} roughness={.2} /></mesh>)}
     <mesh position={[0,5.95,-3]} receiveShadow><boxGeometry args={[16,.16,13]} /><meshStandardMaterial color="#0c0f11" metalness={.38} roughness={.52} /></mesh>
-    {[-4.2, 0, 4.2].map((x) => <mesh key={`ceiling-${x}`} position={[x,5.82,-1]}><boxGeometry args={[2.8,.035,8.2]} /><meshBasicMaterial color="#eaf1f4" toneMapped={false} /></mesh>)}
+    {[-4.2, 0, 4.2].map((x) => <mesh key={`ceiling-${x}`} position={[x,5.82,-1]}><boxGeometry args={[2.35,.035,8.2]} /><meshBasicMaterial color="#aeb8bc" toneMapped={false} /></mesh>)}
     {[-1, 1].map((side) => <group key={`bay-${side}`} position={[side * 6.6, 2.4, -3.8]}>
       <RoundedBox args={[1.25,4.5,8.6]} radius={.08} smoothness={4} castShadow receiveShadow><meshStandardMaterial color="#14181b" metalness={.6} roughness={.28} /></RoundedBox>
       <mesh position={[-side * .64,.1,2.2]}><boxGeometry args={[.035,3.5,.08]} /><meshBasicMaterial color="#d9e1e5" toneMapped={false} /></mesh>
@@ -26,6 +26,6 @@ export function GarageEnvironment() {
       <RoundedBox args={[1.5,1.25,.7]} radius={.06} smoothness={3} castShadow><meshStandardMaterial color="#1c2024" metalness={.68} roughness={.26} /></RoundedBox>
       {[.18, -.18].map((y) => <mesh key={y} position={[0,y,.37]}><boxGeometry args={[1.15,.018,.025]} /><meshStandardMaterial color="#7b858c" metalness={.92} roughness={.14} /></mesh>)}
     </group>)}
-    {entered && <ContactShadows position={[0,-.49,0]} opacity={.76} scale={13} blur={1.6} far={7} />}
+    {entered && <ContactShadows position={[0,-.49,0]} opacity={.88} scale={12} blur={1.05} far={6.5} />}
   </group>
 }

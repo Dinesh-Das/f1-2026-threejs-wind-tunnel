@@ -23,6 +23,6 @@ export function GroundEffect() {
       new THREE.Vector3(x*.92 + yaw*.84,-.49,-3.35),
       new THREE.Vector3(x*1.38*geometry.diffuserExpansion + yaw,-.30,-4.45),
       new THREE.Vector3(x*1.62*geometry.diffuserExpansion + yaw*1.1,-.20,-5.3),
-    ]} color="#00d5ff" lineWidth={1.4 + scenario.floor*1.25*geometry.sidepodUndercut} transparent opacity={(.13 + dynamicPressureRatio*.66)*scenario.floor} />
+    ]} color="#79b9c4" lineWidth={1.0 + scenario.floor*.85*geometry.sidepodUndercut} transparent opacity={(.1 + dynamicPressureRatio*.44)*scenario.floor} />
   })}</group>
 }

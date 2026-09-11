@@ -50,6 +50,6 @@ void main() {
 
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = clamp(5.0 / -mv.z, 0.7, 2.3);
-  vAlpha = (0.12 + bodyInfluence * 0.52 + wakeZone * 0.12) * smoothstep(0.0, 0.08, uSpeed);
+  gl_PointSize = clamp(4.2 / -mv.z, 0.55, 1.75);
+  vAlpha = (0.08 + bodyInfluence * 0.34 + wakeZone * 0.08) * smoothstep(0.0, 0.08, uSpeed);
 }

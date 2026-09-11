@@ -40,7 +40,7 @@ export function FlowParticles() {
   })
   return <points frustumCulled={false}>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]} /></bufferGeometry>
-    <shaderMaterial ref={material} transparent depthWrite={false} blending={THREE.AdditiveBlending} vertexShader={airflowVertex} fragmentShader={airflowFragment} uniforms={{
+    <shaderMaterial ref={material} transparent depthWrite={false} blending={THREE.NormalBlending} vertexShader={airflowVertex} fragmentShader={airflowFragment} uniforms={{
       uTime:{value:0},
       uSpeed:{value:windSpeed/350},
       uYaw:{value:scenario.yaw},
@@ -55,7 +55,7 @@ export function FlowParticles() {
       uFloorWidth:{value:geometry.floorEdgeWidth},
       uDiffuser:{value:geometry.diffuserExpansion},
       uRearWing:{value:geometry.rearWingCamber},
-      uColor:{value:new THREE.Color('#7de3ff')},
+      uColor:{value:new THREE.Color('#a9cbd2')},
     }} />
   </points>
 }

@@ -20,5 +20,5 @@ export function Streamlines() {
     return integrateProxyStreamline(x, y, geometry, scenario, windRatio, i * .73)
       .map((point) => new THREE.Vector3(point.x, point.y, point.z))
   }),[n, scenario, geometry, windRatio])
-  return <group>{lines.map((pts,i) => <Line key={i} points={pts} color={i%3===0?'#b9f2ff':'#4ac9ff'} lineWidth={i%3===0?1.2:.65} transparent opacity={.16 + windRatio*.34} />)}</group>
+  return <group>{lines.map((pts,i) => <Line key={i} points={pts} color={i%3===0?'#d4e5e8':'#78aeb8'} lineWidth={i%3===0?.9:.5} transparent opacity={.11 + windRatio*.25} />)}</group>
 }

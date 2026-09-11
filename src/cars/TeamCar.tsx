@@ -208,13 +208,110 @@ function roleColor(team: Team, role: MaterialRole) {
     case 'body': return team.livery.body
     case 'secondary': return team.livery.sidepod
     case 'accent': return team.livery.accent2
-    case 'carbon': return '#090b0d'
-    case 'tire': return '#111214'
+    case 'carbon': return '#0c0f11'
+    case 'tire': return '#191a1c'
     case 'rim': return team.livery.accent
-    case 'glass': return '#0a1419'
-    case 'interior': return '#101216'
+    case 'glass': return '#081216'
+    case 'interior': return '#141619'
     default: return team.livery.engineCover
   }
+}
+
+let carbonMicroNormal: THREE.DataTexture | null = null
+let rubberMicroNormal: THREE.DataTexture | null = null
+
+function microNormalTexture(kind: 'carbon' | 'rubber') {
+  const cached = kind === 'carbon' ? carbonMicroNormal : rubberMicroNormal
+  if (cached) return cached
+
+  const size = 64
+  const data = new Uint8Array(size * size * 4)
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const i = (y * size + x) * 4
+      let nx = 128
+      let ny = 128
+      if (kind === 'carbon') {
+        const weave = ((x >> 2) + (y >> 2)) & 1
+        const diagonal = Math.sin((x + y) * Math.PI / 4)
+        nx += Math.round((weave ? 1 : -1) * 12 + diagonal * 5)
+        ny += Math.round((weave ? -1 : 1) * 12 - diagonal * 5)
+      } else {
+        const grain = Math.sin(x * 2.17 + y * 5.13) * Math.cos(x * 4.41 - y * 1.73)
+        nx += Math.round(grain * 7)
+        ny += Math.round(Math.sin(x * 3.31 - y * 2.77) * 6)
+      }
+      data[i] = nx
+      data[i + 1] = ny
+      data[i + 2] = 252
+      data[i + 3] = 255
+    }
+  }
+
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(kind === 'carbon' ? 18 : 11, kind === 'carbon' ? 18 : 11)
+  texture.needsUpdate = true
+  if (kind === 'carbon') carbonMicroNormal = texture
+  else rubberMicroNormal = texture
+  return texture
+}
+
+function applyRealisticFinish(material: THREE.MeshPhysicalMaterial, role: MaterialRole, team: Team) {
+  const paint = role === 'body' || role === 'secondary' || role === 'accent' || role === 'generic'
+
+  if (paint) {
+    material.roughness = THREE.MathUtils.clamp(team.materials.roughness * .72, .18, .32)
+    material.metalness = THREE.MathUtils.clamp(team.materials.metallic * .4, .04, .28)
+    material.clearcoat = Math.max(.82, team.materials.clearcoat)
+    material.clearcoatRoughness = THREE.MathUtils.clamp(team.materials.clearcoatRoughness, .08, .2)
+    material.envMapIntensity = 1.55
+    material.ior = 1.52
+    material.specularIntensity = .92
+  } else if (role === 'carbon') {
+    material.roughness = .3
+    material.metalness = .16
+    material.clearcoat = .46
+    material.clearcoatRoughness = .2
+    material.envMapIntensity = 1.32
+    material.anisotropy = .58
+    if (!material.normalMap) {
+      material.normalMap = microNormalTexture('carbon')
+      material.normalScale.set(.2, .2)
+    }
+  } else if (role === 'tire') {
+    material.roughness = .82
+    material.metalness = 0
+    material.clearcoat = 0
+    material.envMapIntensity = .48
+    if (!material.normalMap) {
+      material.normalMap = microNormalTexture('rubber')
+      material.normalScale.set(.12, .12)
+    }
+  } else if (role === 'rim') {
+    material.roughness = .14
+    material.metalness = .94
+    material.clearcoat = .16
+    material.clearcoatRoughness = .12
+    material.envMapIntensity = 1.7
+  } else if (role === 'glass') {
+    material.roughness = .055
+    material.metalness = 0
+    material.clearcoat = .35
+    material.clearcoatRoughness = .08
+    material.transmission = .34
+    material.thickness = .045
+    material.ior = 1.5
+    material.envMapIntensity = 1.42
+  } else if (role === 'interior') {
+    material.roughness = .58
+    material.metalness = .08
+    material.clearcoat = .08
+    material.envMapIntensity = .72
+  }
+
+  material.needsUpdate = true
 }
 
 function pressureColorFor(role: MaterialRole) {
@@ -245,18 +342,14 @@ function toPhysicalMaterial(source: THREE.Material, team: Team, preserveSourceCo
     transparent: source.transparent,
     opacity: source.opacity,
     alphaTest: source.alphaTest,
-    roughness: role === 'tire' ? .88 : role === 'carbon' ? .34 : role === 'rim' ? .16 : role === 'glass' ? .08 : team.materials.roughness,
-    metalness: role === 'tire' ? .02 : role === 'carbon' ? .45 : role === 'rim' ? .95 : role === 'glass' ? .72 : team.materials.metallic,
-    clearcoat: paint ? team.materials.clearcoat : role === 'carbon' ? .35 : 0,
-    clearcoatRoughness: paint ? team.materials.clearcoatRoughness : .28,
-    envMapIntensity: role === 'tire' ? .35 : role === 'carbon' ? 1.1 : 1.45,
+    roughness: team.materials.roughness,
+    metalness: team.materials.metallic,
+    clearcoat: paint ? team.materials.clearcoat : 0,
+    clearcoatRoughness: team.materials.clearcoatRoughness,
+    envMapIntensity: 1.2,
   })
   material.userData = { ...source.userData }
-  if (role === 'glass') {
-    material.transmission = .12
-    material.ior = 1.45
-  }
-  if (role === 'carbon') material.anisotropy = .35
+  applyRealisticFinish(material, role, team)
   return { material, role }
 }
 
@@ -428,11 +521,7 @@ export function TeamCar({ team, position = [0, 0, 0], scale = 1, interactive = t
   useEffect(() => {
     for (const record of materials.current) {
       record.baseColor.set(roleColor(team, record.role))
-      const paint = record.role === 'body' || record.role === 'secondary' || record.role === 'accent' || record.role === 'generic'
-      record.material.roughness = record.role === 'tire' ? .88 : record.role === 'carbon' ? .34 : record.role === 'rim' ? .16 : record.role === 'glass' ? .08 : team.materials.roughness
-      record.material.metalness = record.role === 'tire' ? .02 : record.role === 'carbon' ? .45 : record.role === 'rim' ? .95 : record.role === 'glass' ? .72 : team.materials.metallic
-      record.material.clearcoat = paint ? team.materials.clearcoat : record.role === 'carbon' ? .35 : 0
-      record.material.clearcoatRoughness = paint ? team.materials.clearcoatRoughness : .28
+      applyRealisticFinish(record.material, record.role, team)
     }
   }, [team])
 

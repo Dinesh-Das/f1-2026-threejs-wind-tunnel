@@ -20,17 +20,17 @@ function TunnelStructure() {
     {/* Transparent test-section walls retain visibility while giving the flow a real tunnel volume. */}
     {[1, -1].map((side) => <mesh key={`wall-${side}`} position={[side * 4.55, 1.55, -.3]}>
       <boxGeometry args={[.055, 4.25, 14.8]} />
-      <meshPhysicalMaterial color="#6f9dad" transparent opacity={.11} roughness={.12} metalness={.05} transmission={.16} depthWrite={false} />
+      <meshPhysicalMaterial color="#7d898d" transparent opacity={.065} roughness={.2} metalness={.03} transmission={.2} depthWrite={false} />
     </mesh>)}
     <mesh position={[0, 3.65, -.3]}>
       <boxGeometry args={[9.15, .055, 14.8]} />
-      <meshPhysicalMaterial color="#7098a6" transparent opacity={.1} roughness={.16} transmission={.12} depthWrite={false} />
+      <meshPhysicalMaterial color="#7d888c" transparent opacity={.055} roughness={.22} transmission={.16} depthWrite={false} />
     </mesh>
 
     {/* Settling chamber and honeycomb upstream of the test section. */}
     <mesh position={[0, 1.45, 7.45]}>
       <boxGeometry args={[8.35, 3.85, .09]} />
-      <meshStandardMaterial color="#263c45" metalness={.72} roughness={.28} />
+      <meshStandardMaterial color="#20282b" metalness={.68} roughness={.34} />
     </mesh>
     {honeycomb.map(({ x, y }) => <mesh key={`${x}-${y}`} position={[x, y, 7.38]} rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[.18, .18, .18, 6, 1, true]} />
@@ -115,8 +115,8 @@ export function WindTunnelEnvironment() {
   useFrame((_,dt) => { if (fan.current && wind && windSpeed > 0) fan.current.rotation.z += dt * 5.5 * (windSpeed / 350) })
   if (!aero || floorView) return null
   return <group>
-    <mesh position={[0,-.58,0]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[32,18]} /><meshStandardMaterial color="#071014" metalness={.65} roughness={.34} /></mesh>
-    <Grid position={[0,-.57,0]} args={[32,18]} cellSize={.5} cellThickness={.18} cellColor="#123546" sectionSize={2} sectionThickness={.55} sectionColor="#1e6e8f" fadeDistance={22} />
+    <mesh position={[0,-.58,0]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[32,18]} /><meshStandardMaterial color="#080c0e" metalness={.54} roughness={.43} /></mesh>
+    <Grid position={[0,-.57,0]} args={[32,18]} cellSize={.5} cellThickness={.12} cellColor="#17262c" sectionSize={2} sectionThickness={.34} sectionColor="#24434f" fadeDistance={20} />
     <TunnelStructure />
     <RollingRoad />
     <mesh position={[0,3,-6]}><boxGeometry args={[10,.08,2]} /><meshBasicMaterial color="#173745" /></mesh>
