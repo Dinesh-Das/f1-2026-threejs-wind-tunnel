@@ -51,7 +51,7 @@ export function TechnicalPanel() {
         <div className="data-truth"><b>FLOOR VELOCITY</b><span>{(floorFlow.speedRatio * 100).toFixed(0)}% free-stream proxy</span></div>
         <div className="data-truth"><b>WAKE VELOCITY</b><span>{(wakeFlow.speedRatio * 100).toFixed(0)}% free-stream proxy</span></div>
       </>}
-      <div className="data-truth"><b>MODEL STATUS</b><span>{team.carModel ? 'AUTHORIZED TEAM ASSET' : 'SHARED CC-BY CHASSIS · STYLIZED LIVERY'}</span></div>
+      <div className="data-truth"><b>MODEL STATUS</b><span>{team.carModel ? 'AUTHORIZED TEAM ASSET' : 'PROCEDURAL 2026 REGULATION PROXY · STYLIZED LIVERY'}</span></div>
     </aside>
   )
 }

@@ -1,4 +1,4 @@
-import { Grid, ContactShadows, MeshReflectorMaterial, RoundedBox } from '@react-three/drei'
+import { Grid, ContactShadows, RoundedBox } from '@react-three/drei'
 import { useF1Store } from '../store/useF1Store'
 
 export function GarageEnvironment() {
@@ -11,7 +11,7 @@ export function GarageEnvironment() {
     <mesh position={[0,-.52,0]} receiveShadow><cylinderGeometry args={[5.4,5.6,.18,128]} /><meshPhysicalMaterial color="#111416" metalness={.58} roughness={.24} clearcoat={.42} clearcoatRoughness={.2} /></mesh>
     <mesh position={[0,-.64,0]} rotation={[-Math.PI/2,0,0]} receiveShadow>
       <planeGeometry args={[45,45]} />
-      <MeshReflectorMaterial resolution={quality === 'ULTRA' ? 1024 : 512} blur={[520, 150]} mixBlur={1} mixStrength={quality === 'ULTRA' ? .6 : .44} roughness={.5} depthScale={.62} minDepthThreshold={.72} maxDepthThreshold={1.55} color="#060809" metalness={.34} mirror={.1} />
+      <meshStandardMaterial color="#0a0d0f" metalness={.04} roughness={.88} />
     </mesh>
     <Grid position={[0,-.635,0]} args={[40,40]} cellSize={1} cellThickness={.16} cellColor="#252a2e" sectionSize={5} sectionThickness={.42} sectionColor="#383f44" fadeDistance={25} fadeStrength={1.7} />
     <mesh position={[0,3.15,-9]} receiveShadow><boxGeometry args={[14,6.4,.15]} /><meshStandardMaterial color="#111416" metalness={.36} roughness={.5} /></mesh>
@@ -26,6 +26,6 @@ export function GarageEnvironment() {
       <RoundedBox args={[1.5,1.25,.7]} radius={.06} smoothness={3} castShadow><meshStandardMaterial color="#1c2024" metalness={.68} roughness={.26} /></RoundedBox>
       {[.18, -.18].map((y) => <mesh key={y} position={[0,y,.37]}><boxGeometry args={[1.15,.018,.025]} /><meshStandardMaterial color="#7b858c" metalness={.92} roughness={.14} /></mesh>)}
     </group>)}
-    {entered && <ContactShadows position={[0,-.49,0]} opacity={.88} scale={12} blur={1.05} far={6.5} />}
+    {entered && (quality === 'HIGH' || quality === 'ULTRA') && <ContactShadows position={[0,-.49,0]} opacity={.5} scale={10} blur={1.45} far={5.5} resolution={quality === 'ULTRA' ? 512 : 256} />}
   </group>
 }

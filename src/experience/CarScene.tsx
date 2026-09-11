@@ -3,8 +3,21 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useRef } from 'react'
 import { TeamCar } from '../cars/TeamCar'
+import { F1Car } from '../cars/F1Car'
 import { teamById } from '../data/teams'
 import { useF1Store } from '../store/useF1Store'
+
+function CarForTeam({ teamId, position, scale, interactive }: {
+  teamId: string
+  position: [number, number, number]
+  scale: number
+  interactive: boolean
+}) {
+  const team = teamById(teamId)
+  return team.carModel
+    ? <TeamCar team={team} position={position} scale={scale} interactive={interactive} />
+    : <F1Car team={team} position={position} scale={scale} interactive={interactive} />
+}
 
 export function CarScene() {
   const teamId = useF1Store((s) => s.selectedTeamId)
@@ -29,8 +42,8 @@ export function CarScene() {
   })
   return <group ref={group}>
     <Suspense fallback={null}>
-      <TeamCar team={teamById(teamId)} position={compareMode ? [-2.6,0,0] : [0,0,0]} scale={compareMode ? .82 : 1} interactive={!compareMode} />
-      {compareMode && <TeamCar team={teamById(compareTeamId)} position={[2.6,0,0]} scale={.82} interactive={false} />}
+      <CarForTeam teamId={teamId} position={compareMode ? [-2.6,0,0] : [0,0,0]} scale={compareMode ? .82 : 1} interactive={!compareMode} />
+      {compareMode && <CarForTeam teamId={compareTeamId} position={[2.6,0,0]} scale={.82} interactive={false} />}
     </Suspense>
   </group>
 }

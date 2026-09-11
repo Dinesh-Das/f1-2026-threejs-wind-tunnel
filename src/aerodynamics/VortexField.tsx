@@ -9,9 +9,11 @@ export function VortexField() {
   const flowPreset = useF1Store((s) => s.flowPreset)
   const windSpeed = useF1Store((s) => s.windSpeed)
   const selectedTeamId = useF1Store((s) => s.selectedTeamId)
+  const quality = useF1Store((s) => s.quality)
   const scenario = FLOW_SCENARIOS[flowPreset]
   const geometry = teamById(selectedTeamId).geometry
   const windRatio = THREE.MathUtils.clamp(windSpeed / 350, 0, 1)
+  const samples = quality === 'ULTRA' ? 72 : quality === 'HIGH' ? 56 : quality === 'MEDIUM' ? 42 : 30
   const vortices = useMemo(() => [
     [1.8,.2,2.1],[-1.8,.2,2.1],
     [1.4 * geometry.diffuserExpansion,.05,-3],[-1.4 * geometry.diffuserExpansion,.05,-3],
@@ -19,7 +21,7 @@ export function VortexField() {
   return <group>{vortices.map((origin,idx) => {
     const geometryStrength = idx < 2 ? geometry.frontWingCamber : geometry.diffuserExpansion * geometry.rearWingCamber
     const strength = scenario.vortex * (.72 + windRatio*.28) * geometryStrength
-    const pts = Array.from({length:90},(_,i) => {
+    const pts = Array.from({length:samples},(_,i) => {
       const t=i*.18
       const r=(.13+.0024*i)*strength
       const yawDrift = scenario.yaw * i * .014

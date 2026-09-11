@@ -78,5 +78,5 @@ export function CameraRig() {
     controls.current.target.lerp(target, t)
     controls.current.update()
   })
-  return <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={.055} minDistance={2.2} maxDistance={22} maxPolarAngle={Math.PI * .82} />
+  return <OrbitControls ref={controls} makeDefault regress enableDamping dampingFactor={.055} minDistance={2.2} maxDistance={22} maxPolarAngle={Math.PI * .82} />
 }

@@ -97,7 +97,7 @@ export const useF1Store = create<State>((set) => ({
   selectedComponent: null,
   cameraPreset: 'hero',
   environment: 'F1 Studio',
-  quality: 'ULTRA',
+  quality: 'HIGH',
   aerodynamicMode: autoAerodynamicMode,
   windTunnel: autoWindTunnel,
   windSpeed: 250,

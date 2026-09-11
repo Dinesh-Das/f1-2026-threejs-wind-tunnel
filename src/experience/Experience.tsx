@@ -15,7 +15,7 @@ export function Experience() {
   return (
     <Canvas
       className="f1-canvas"
-      dpr={quality === 'ULTRA' ? [1.5, 2] : quality === 'HIGH' ? [1.25, 1.75] : quality === 'MEDIUM' ? [1, 1.5] : [1, 1.25]}
+      dpr={quality === 'ULTRA' ? [1.25, 1.75] : quality === 'HIGH' ? [1.1, 1.5] : quality === 'MEDIUM' ? [1, 1.25] : 1}
       gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
       shadows={quality !== 'LOW'}
       camera={{ position: [10, 2.65, 12], fov: 34, near: .05, far: 120 }}
@@ -33,10 +33,10 @@ export function Experience() {
       <CarScene />
       <CameraRig />
       <AdaptiveDpr />
-      {quality !== 'LOW' && <EffectComposer multisampling={0} frameBufferType={THREE.UnsignedByteType}>
-        <N8AO quality={quality === 'ULTRA' ? 'high' : 'medium'} aoRadius={.44} distanceFalloff={.82} intensity={1.02} halfRes screenSpaceRadius={false} />
+      {(quality === 'HIGH' || quality === 'ULTRA') && <EffectComposer multisampling={0} frameBufferType={THREE.UnsignedByteType}>
+        {quality === 'ULTRA' && <N8AO quality="high" aoRadius={.4} distanceFalloff={.84} intensity={.78} halfRes screenSpaceRadius={false} />}
         <SMAA />
-        <Bloom intensity={quality === 'ULTRA' ? .095 : .06} luminanceThreshold={1.6} mipmapBlur />
+        <Bloom intensity={quality === 'ULTRA' ? .075 : .035} luminanceThreshold={1.7} mipmapBlur />
       </EffectComposer>}
     </Canvas>
   )

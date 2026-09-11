@@ -364,7 +364,6 @@ function liveryMaterial(team: Team, color: string) {
     roughness,
     clearcoat: team.livery.finish === 'satin' ? team.materials.clearcoat * .7 : team.materials.clearcoat,
     clearcoatRoughness: team.livery.finish === 'satin' ? Math.max(.22, team.materials.clearcoatRoughness) : team.materials.clearcoatRoughness,
-    transparent: true,
   })
 }
 
@@ -400,13 +399,28 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
   useEffect(() => () => carbonWeave.dispose(), [carbonWeave])
   const carbon = useMemo(() => new THREE.MeshPhysicalMaterial({
     color: '#0c0f11', metalness: .08, roughness: .3, clearcoat: .46, clearcoatRoughness: .18,
-    bumpMap: carbonWeave, bumpScale: .012, transparent: true,
+    bumpMap: carbonWeave, bumpScale: .012,
   }), [carbonWeave])
   const tire = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18191a', roughness: .9, metalness: 0 }), [])
   const rim = useMemo(() => new THREE.MeshStandardMaterial({ color: '#50575c', roughness: .28, metalness: .86 }), [])
   const brake = useMemo(() => new THREE.MeshStandardMaterial({ color: '#343a3e', roughness: .48, metalness: .72 }), [])
   const visor = useMemo(() => new THREE.MeshPhysicalMaterial({ color: '#071014', roughness: .08, metalness: .35, clearcoat: 1, clearcoatRoughness: .04 }), [])
   const helmet = useMemo(() => liveryMaterial(team, team.livery.accent2), [team])
+  useEffect(() => () => {
+    paint.dispose()
+    sidepodPaint.dispose()
+    engineCoverPaint.dispose()
+    wingPaint.dispose()
+    accentPaint.dispose()
+    accent2Paint.dispose()
+    haloPaint.dispose()
+    carbon.dispose()
+    tire.dispose()
+    rim.dispose()
+    brake.dispose()
+    visor.dispose()
+    helmet.dispose()
+  }, [paint, sidepodPaint, engineCoverPaint, wingPaint, accentPaint, accent2Paint, haloPaint, carbon, tire, rim, brake, visor, helmet])
   const liveryPaints = useMemo(() => {
     const pressureTint = (base: string, pressureColor: string) => {
       const baseColor = new THREE.Color(base)
@@ -422,6 +436,18 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
       [haloPaint, ...pressureTint(team.livery.halo, '#4f7fb8')],
     ] as const
   }, [paint, sidepodPaint, engineCoverPaint, wingPaint, accentPaint, accent2Paint, haloPaint, team])
+  useEffect(() => {
+    for (const [material] of liveryPaints) {
+      material.transparent = xray
+      material.depthWrite = !xray
+      if (!xray) material.opacity = 1
+      material.needsUpdate = true
+    }
+    carbon.transparent = xray
+    carbon.depthWrite = !xray
+    if (!xray) carbon.opacity = 1
+    carbon.needsUpdate = true
+  }, [xray, liveryPaints, carbon])
   const chassisStations = useMemo<LoftStation[]>(() => [
     { z: 2.18, width: .58, y: -.05, height: .42 },
     { z: 1.35, width: .72 * geometryProfile.sidepodWidth, y: .01, height: .5 },
@@ -475,11 +501,9 @@ export function F1Car({ team, position = [0, 0, 0], scale = 1, interactive = tru
     const opacity = xray ? .2 : 1
     for (const [material, baseColor, pressureColor] of liveryPaints) {
       material.opacity = THREE.MathUtils.damp(material.opacity, opacity, 5, dt)
-      material.depthWrite = !xray
       material.color.lerp(pressure && windTunnel && windSpeed > 0 ? pressureColor : baseColor, 1 - Math.exp(-dt * 3))
     }
     carbon.opacity = THREE.MathUtils.damp(carbon.opacity, xray ? .42 : 1, 5, dt)
-    carbon.depthWrite = !xray
     const open = activeAero && aeroState === 'Straight'
     if (rearFlaps.current) rearFlaps.current.rotation.x = THREE.MathUtils.damp(rearFlaps.current.rotation.x, open ? -.13 : 0, 5, dt)
     if (frontFlaps.current) frontFlaps.current.rotation.x = THREE.MathUtils.damp(frontFlaps.current.rotation.x, open ? -.085 : 0, 5, dt)

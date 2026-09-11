@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 import { useF1Store } from '../../store/useF1Store'
 
@@ -6,7 +6,18 @@ export function Intro() {
   const [opening, setOpening] = useState(false)
   const set = useF1Store((s) => s.set)
   const { active, progress, errors } = useProgress()
-  const ready = !active && progress >= 99.9 && errors.length === 0
+  const [settled, setSettled] = useState(false)
+
+  useEffect(() => {
+    if (active || errors.length) {
+      setSettled(false)
+      return
+    }
+    const id = window.setTimeout(() => setSettled(true), 700)
+    return () => window.clearTimeout(id)
+  }, [active, errors.length])
+
+  const ready = !active && errors.length === 0 && (progress >= 99.9 || settled)
 
   const enter = () => {
     if (!ready) return

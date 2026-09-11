@@ -15,7 +15,7 @@ export function FlowParticles() {
   const material = useRef<THREE.ShaderMaterial>(null)
   const scenario = FLOW_SCENARIOS[flowPreset]
   const geometry = teamById(selectedTeamId).geometry
-  const count = quality === 'ULTRA' ? 80000 : quality === 'HIGH' ? 42000 : quality === 'MEDIUM' ? 22000 : 9000
+  const count = quality === 'ULTRA' ? 35000 : quality === 'HIGH' ? 20000 : quality === 'MEDIUM' ? 10000 : 4000
   const positions = useMemo(() => {
     const a = new Float32Array(count*3)
     for (let i=0;i<count;i++) { a[i*3]=(Math.random()-.5)*8; a[i*3+1]=Math.random()*3.5-.45; a[i*3+2]=(Math.random()-.5)*20 }
@@ -38,7 +38,7 @@ export function FlowParticles() {
     material.current.uniforms.uDiffuser.value = geometry.diffuserExpansion
     material.current.uniforms.uRearWing.value = geometry.rearWingCamber
   })
-  return <points frustumCulled={false}>
+  return <points>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]} /></bufferGeometry>
     <shaderMaterial ref={material} transparent depthWrite={false} blending={THREE.NormalBlending} vertexShader={airflowVertex} fragmentShader={airflowFragment} uniforms={{
       uTime:{value:0},
