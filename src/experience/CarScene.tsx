@@ -1,22 +1,26 @@
 import { Suspense } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useRef } from 'react'
-import { TeamCar } from '../cars/TeamCar'
-import { F1Car } from '../cars/F1Car'
+import { useEffect, useRef } from 'react'
+import { CarModel } from '../cars/CarModel'
+import { carManifestForTeam } from '../cars/carAssetManifest'
 import { teamById } from '../data/teams'
 import { useF1Store } from '../store/useF1Store'
 
-function CarForTeam({ teamId, position, scale, interactive }: {
+function CarForTeam({
+  teamId,
+  position,
+  scale,
+  interactive,
+}: {
   teamId: string
   position: [number, number, number]
   scale: number
   interactive: boolean
 }) {
   const team = teamById(teamId)
-  return team.carModel
-    ? <TeamCar team={team} position={position} scale={scale} interactive={interactive} />
-    : <F1Car team={team} position={position} scale={scale} interactive={interactive} />
+  const manifest = carManifestForTeam(teamId)
+  return <CarModel team={team} manifest={manifest} position={position} scale={scale} interactive={interactive} />
 }
 
 export function CarScene() {
@@ -29,7 +33,12 @@ export function CarScene() {
   const reduced = useF1Store((s) => s.reducedMotion)
   const floorView = useF1Store((s) => s.floorView)
   const aerodynamicMode = useF1Store((s) => s.aerodynamicMode)
+  const cameraPreset = useF1Store((s) => s.cameraPreset)
   const group = useRef<THREE.Group>(null)
+  useEffect(() => {
+    if (!group.current) return
+    group.current.rotation.y = 0
+  }, [cameraPreset])
   useFrame((_, dt) => {
     if (!group.current) return
     if (aerodynamicMode) {
@@ -40,10 +49,17 @@ export function CarScene() {
     }
     if (turntable && !compareMode && !reduced && !floorView) group.current.rotation.y += dt * turntableSpeed * direction
   })
-  return <group ref={group}>
-    <Suspense fallback={null}>
-      <CarForTeam teamId={teamId} position={compareMode ? [-2.6,0,0] : [0,0,0]} scale={compareMode ? .82 : 1} interactive={!compareMode} />
-      {compareMode && <CarForTeam teamId={compareTeamId} position={[2.6,0,0]} scale={.82} interactive={false} />}
-    </Suspense>
-  </group>
+  return (
+    <group ref={group}>
+      <Suspense fallback={null}>
+        <CarForTeam
+          teamId={teamId}
+          position={compareMode ? [-2.6, 0, 0] : [0, 0, 0]}
+          scale={compareMode ? 0.82 : 1}
+          interactive={!compareMode}
+        />
+        {compareMode && <CarForTeam teamId={compareTeamId} position={[2.6, 0, 0]} scale={0.82} interactive={false} />}
+      </Suspense>
+    </group>
+  )
 }

@@ -30,3 +30,7 @@ Thumbs.db
 .qa-shot-*/
 _audit-*.png
 _qa-*.png
+.tmp-cdp-*.mjs
+.tmp-chrome-qa/
+qa-console.json
+qa-*.png

@@ -32,9 +32,15 @@ export function Intro() {
         <span className="eyebrow">FORMULA 1</span>
         <h1>2026</h1>
         <p>ENGINEERING EXPERIENCE</p>
-        <div className="load-line"><span style={{ width: `${Math.max(progress, 12)}%` }} /></div>
+        <div className="load-line">
+          <span style={{ width: `${Math.max(progress, 12)}%` }} />
+        </div>
         <div className={`loading-copy ${errors.length ? 'loading-copy--error' : ''}`}>
-          {errors.length ? 'Asset loading failed · check console' : ready ? 'Vehicle · materials · environment ready' : 'Preparing vehicle · materials · environment'}
+          {errors.length
+            ? 'Asset loading failed · check console'
+            : ready
+              ? 'Vehicle · materials · environment ready'
+              : 'Preparing vehicle · materials · environment'}
         </div>
         <button className="enter-button" onClick={enter} disabled={!ready} aria-disabled={!ready}>
           {ready ? 'ENTER GARAGE' : `LOADING ${Math.round(progress)}%`} <span>→</span>

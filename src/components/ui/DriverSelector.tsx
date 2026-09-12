@@ -9,8 +9,13 @@ export function DriverSelector() {
   return (
     <section className="driver-switcher" aria-label="Drivers">
       {team.drivers.map((driver) => (
-        <button key={driver.id} className={driver.id === driverId ? 'is-active' : ''} onClick={() => set({ selectedDriverId: driver.id })}>
-          <span>{driver.shortName}</span><b>{driver.number}</b>
+        <button
+          key={driver.id}
+          className={driver.id === driverId ? 'is-active' : ''}
+          onClick={() => set({ selectedDriverId: driver.id })}
+        >
+          <span>{driver.shortName}</span>
+          <b>{driver.number}</b>
         </button>
       ))}
     </section>

@@ -7,6 +7,7 @@ import { Lighting } from './Lighting'
 import { CarScene } from './CarScene'
 import { GarageEnvironment } from './GarageEnvironment'
 import { WindTunnelEnvironment } from './WindTunnelEnvironment'
+import { PerformanceTelemetry } from './PerformanceTelemetry'
 import { useF1Store } from '../store/useF1Store'
 
 export function Experience() {
@@ -18,9 +19,9 @@ export function Experience() {
       dpr={quality === 'ULTRA' ? [1.25, 1.75] : quality === 'HIGH' ? [1.1, 1.5] : quality === 'MEDIUM' ? [1, 1.25] : 1}
       gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
       shadows={quality !== 'LOW'}
-      camera={{ position: [10, 2.65, 12], fov: 34, near: .05, far: 120 }}
+      camera={{ position: [10, 2.65, 12], fov: 34, near: 0.05, far: 120 }}
       onCreated={({ gl }) => {
-        gl.toneMappingExposure = .96
+        gl.toneMappingExposure = 0.96
         gl.outputColorSpace = THREE.SRGBColorSpace
         gl.shadowMap.type = THREE.PCFSoftShadowMap
       }}
@@ -32,12 +33,24 @@ export function Experience() {
       <WindTunnelEnvironment />
       <CarScene />
       <CameraRig />
+      <PerformanceTelemetry />
       <AdaptiveDpr />
-      {(quality === 'HIGH' || quality === 'ULTRA') && <EffectComposer multisampling={0} frameBufferType={THREE.UnsignedByteType}>
-        {quality === 'ULTRA' && <N8AO quality="high" aoRadius={.4} distanceFalloff={.84} intensity={.78} halfRes screenSpaceRadius={false} />}
-        <SMAA />
-        <Bloom intensity={quality === 'ULTRA' ? .075 : .035} luminanceThreshold={1.7} mipmapBlur />
-      </EffectComposer>}
+      {(quality === 'HIGH' || quality === 'ULTRA') && (
+        <EffectComposer multisampling={0} frameBufferType={THREE.UnsignedByteType}>
+          {quality === 'ULTRA' && (
+            <N8AO
+              quality="high"
+              aoRadius={0.4}
+              distanceFalloff={0.84}
+              intensity={0.78}
+              halfRes
+              screenSpaceRadius={false}
+            />
+          )}
+          <SMAA />
+          <Bloom intensity={quality === 'ULTRA' ? 0.075 : 0.035} luminanceThreshold={1.7} mipmapBlur />
+        </EffectComposer>
+      )}
     </Canvas>
   )
 }

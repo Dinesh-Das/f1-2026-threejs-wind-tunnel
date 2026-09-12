@@ -1,56 +1,40 @@
-# Codebase Audit Log
+# Engineering Audit Log
 
-## Iteration 1 — 2026-09-04
+## Baseline
 
-Stack: React 19 + TypeScript + Vite + React Three Fiber/Three.js + Zustand. Existing checks are Vitest and the TypeScript/Vite production build. No linter or formatter is configured, so none was introduced during this audit.
+The original runtime used a large procedural `F1Car` path for every team despite documentation describing another renderer. The bundled glTF was low detail, constructor geometry values and Cd/Cl/load values were heuristic, pressure colouring was not a surface-pressure field, flow layers used separate decorative approximations, active-aero naming/mechanics were not defensible, and an environment selector had no meaningful renderer effect. Lint/format tooling was absent.
 
-Starting Git state: repository already initialized. Two pre-existing untracked image files (`_codex-final-aero.png` and `_codex-final-showcase.png`) were left untouched.
+Before the major refactor, the repository's existing test/build baseline passed (24 tests plus production build).
 
-### Findings
+## Current refactor
 
-| ID | Severity | Category | Location | Finding |
-| --- | --- | --- | --- | --- |
-| A-001 | Medium | Correctness / error handling | `src/store/useF1Store.ts` | Direct `localStorage` reads/writes can throw in storage-restricted browser contexts, crashing initialization or team selection. |
-| A-002 | Medium | Performance | `src/cars/TeamCar.tsx` | Component inference recomputes full-scene bounds for every mesh, creating avoidable O(N²) work when loading high-detail models. |
-| A-003 | Low | Dead code | `src/cars/F1Car.tsx`, shader files | The procedural `F1Car` implementation and several legacy shader files are not referenced by the active app. |
-| A-004 | Low | Dependencies | `package.json` | Several dependencies have newer releases available; upgrades are non-blocking and may include majors requiring compatibility work. |
-| A-005 | Low | Tooling | repository | No configured linter/formatter exists. Per audit guardrails, this is recorded as backlog rather than adding new tooling. |
+- Replaced dual/procedural production paths with manifest-driven `CarModel` rendering.
+- Added typed asset manifests and validation with source, licence, accuracy, semantics, expected dimensions, optional LOD/CFD references, and production-only requirements for explicit per-wheel spin axes. Production active-aero nodes now require explicit parent-local hinge axes/pivots plus Corner/Straight angles; the renderer transforms the declared node hierarchy once and guards against nested mapped hinges being applied twice.
+- Added a shared source-glTF node resolver so manifest mappings remain traceable to original asset names while still resolving `GLTFLoader`'s runtime sanitization. This removes false missing-wheel/semantic diagnostics without weakening production validation. Repeated diagnostics for the same shared fallback asset are reported once per issue while production-model diagnostics remain per asset.
+- Kept the shared CC-BY-4.0 low-poly model as an explicitly labelled fallback for all teams; no constructor-specific geometry accuracy is claimed.
+- Added a geometry field registry sourced from loaded semantic mesh bounds.
+- Added `AeroFieldProvider` types, a geometry-aware realtime approximation provider, and a genuine precomputed-CFD adapter/provider boundary. The CFD loader validates provenance/conditions/grid data, supports exact-condition selection plus compatible speed interpolation, and falls back to the geometry-aware provider when no valid dataset is available.
+- Migrated streamlines, velocity glyphs, vorticity, ground-effect, relative-pressure estimate, wake, center slice, probe, and particle obstacle handling toward the shared field; streamlines use RK2-style integration and obstacle projection.
+- Added a provider-backed engineering probe reporting world coordinates, local velocity, V/V∞, relative pressure estimate, relative vorticity, and provider provenance.
+- Split aero controls into physical/scenario inputs and visualization controls. Explicit yaw is authoritative store state; flow presets write free-stream speed and yaw rather than composing yaw twice.
+- Derived rolling-road speed and wheel angular velocity from free-stream speed, including zero-speed invariants. The fallback currently infers wheel spin axes from mesh bounds because the bundled asset has no validated wheel-axis metadata.
+- Removed guessed constructor Cd/Cl/load presentation and the old fake pressure-map material path. The replacement pressure layer is explicitly labelled a relative-pressure estimate, not Cp.
+- Removed dead environment state/control and obsolete procedural renderer/heuristic flow/shader files.
+- Switched UI terminology to CORNER MODE / STRAIGHT MODE.
+- Added asset requirements, strict manifest tests, aero-provider tests, and ESLint/Prettier tooling.
 
-### Baseline checks
+## Scientific/asset limitations
 
-- `npm run verify`: 23 tests passed and production build passed before fixes.
-- `npm audit --audit-level=low`: 0 vulnerabilities.
-- `npm outdated`: reports available updates only; no dependency-resolution error.
-- Fresh `npm ci`: environment-blocked because an already-running Vite dev server holds native Windows binaries open. `npm install` restored the existing install without tracked-file changes; the dev server was left running.
+No CFD dataset is bundled. All live flow visualization is a geometry-aware qualitative approximation, not CFD or measured constructor data. The fallback model lacks trustworthy independently modelled 2026 active-aero hinges, explicit validated wheel rotation axes, high-detail constructor geometry, and production-quality team textures. These gaps prevent truthful per-team photorealism and exact active-aero animation.
 
-### Fix progress
+## Licensing/provenance
 
-- A-001: fixed by making saved-team persistence best-effort and adding a regression test proving storage denial does not block team selection.
-- A-002: fixed by computing normalized scene bounds once per loaded model and reusing them for every mesh classification instead of traversing the full scene per mesh.
+The shared model is “basic Lowpoly F1 Car V1” by arthihalder under CC BY 4.0. Attribution is retained in `public/assets/cars/base/LICENSE.txt` and the manifest. Production replacement assets must provide equivalent provenance/licensing metadata.
 
-Open Critical/High/Medium count after fixes: 0.
+## Verification
 
-## Iteration 2 — 2026-09-04
+Current focused audit coverage is 21 tests, including manifest/aero-provider behavior, source-glTF/runtime-node mapping, loaded wheelbase/scale validation, production wheel-axis validation, synthetic precomputed-CFD sampling/selection/interpolation, zero-yaw symmetry, obstacle-aware streamlines, explicit yaw, state invariants, and zero-speed rolling-road/wheel invariants. Earlier baseline evidence showed 24 tests before the refactor; the current suite was deliberately rewritten around the new architecture rather than preserving obsolete assertions.
 
-Fresh audit after both Medium fixes:
+Final `npm run verify` passes: strict TypeScript typecheck, 21/21 tests, ESLint, and the Vite production build all succeed. `npm run format:check` also passes.
 
-- `npm run verify`: 24 tests passed; TypeScript project build and Vite production build passed.
-- `npm audit --audit-level=low`: 0 vulnerabilities.
-- `npm ls --depth=0`: dependency tree valid.
-- Manual follow-up scan found no new Critical, High, or Medium correctness, security, error-handling, or performance issues.
-- No lint/formatter check exists because the repository does not configure either tool.
-- Fresh `npm ci` remains environment-blocked by the already-running Vite dev server holding Windows native binaries; this is not a tracked-code failure and the normal install is intact.
-
-Open Critical/High/Medium count: 0.
-
-## Final summary
-
-- Iterations run: 2.
-- Critical: 0 found, 0 remaining.
-- High: 0 found, 0 remaining.
-- Medium: 2 found, 2 fixed, 0 remaining.
-- Low backlog: 3 items (unused legacy code/shaders, dependency upgrades, optional lint/formatter adoption).
-- Breaking changes: none.
-- Pre-existing untracked image files were not modified or committed.
-
-AUDIT_LOOP: CLEAN
+Runtime inspection confirmed that an independent browser path renders the full application UI tree, including all 11 constructors, camera presets, aero controls, accuracy/provenance labels, and the fallback-model limitation messaging. The separate CDP screenshot harness produced blank white images with an empty `#root`, so those screenshots are invalid visual evidence. Because the browser screenshot bridge did not return inspectable pixels, full appearance QA across the required constructor/camera/aero matrix remains incomplete and must not be claimed as passed.

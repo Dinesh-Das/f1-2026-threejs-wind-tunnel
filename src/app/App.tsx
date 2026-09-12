@@ -30,7 +30,9 @@ export function App() {
   return (
     <main className="app-shell" style={{ '--accent': team.primaryColor } as React.CSSProperties}>
       <Experience />
-      {!entered ? <Intro /> : (
+      {!entered ? (
+        <Intro />
+      ) : (
         <div className="ui-layer">
           <TopNav />
           <TeamSelector />
