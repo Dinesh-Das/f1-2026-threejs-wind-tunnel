@@ -31,7 +31,8 @@ type Props = {
   interactive?: boolean
 }
 
-type MaterialRole = 'body' | 'secondary' | 'accent' | 'carbon' | 'tire' | 'rim' | 'glass' | 'interior' | 'generic'
+type MaterialRole =
+  'body' | 'secondary' | 'accent' | 'carbon' | 'tire' | 'rim' | 'metal' | 'marking' | 'glass' | 'interior' | 'generic'
 
 type MaterialRecord = {
   material: THREE.MeshPhysicalMaterial
@@ -51,6 +52,12 @@ type MeshRecord = {
   basePosition: THREE.Vector3
   explodeOffset: THREE.Vector3
   explodedPosition: THREE.Vector3
+}
+
+type WheelRecord = {
+  object: THREE.Object3D
+  axle: 'front' | 'rear'
+  axis: 'x' | 'y' | 'z'
 }
 
 type ActiveAeroRecord = {
@@ -240,6 +247,7 @@ function declaredPartFor(object: THREE.Object3D) {
 function semanticToPart(semantic: CarSemanticComponent | null) {
   if (!semantic) return null
   if (semantic === 'frontWing' || semantic === 'frontActiveFlaps') return 'frontWing'
+  if (semantic === 'rearActiveFlaps') return 'rearWing'
   if (semantic === 'frontSuspension' || semantic === 'rearSuspension') return 'suspension'
   if (semantic === 'frontWheels' || semantic === 'rearWheels') return 'wheels'
   if (semantic === 'bodywork') return 'sidepods'
@@ -322,7 +330,19 @@ function disposeScene(scene: THREE.Object3D) {
 function materialRole(name: string, declared?: unknown): MaterialRole {
   if (
     typeof declared === 'string' &&
-    ['body', 'secondary', 'accent', 'carbon', 'tire', 'rim', 'glass', 'interior', 'generic'].includes(declared)
+    [
+      'body',
+      'secondary',
+      'accent',
+      'carbon',
+      'tire',
+      'rim',
+      'metal',
+      'marking',
+      'glass',
+      'interior',
+      'generic',
+    ].includes(declared)
   ) {
     return declared as MaterialRole
   }
@@ -347,11 +367,15 @@ function roleColor(team: Team, role: MaterialRole) {
     case 'accent':
       return team.livery.accent2
     case 'carbon':
-      return '#0c0f11'
+      return '#16191c'
     case 'tire':
-      return '#191a1c'
+      return '#262729'
     case 'rim':
-      return team.livery.accent
+      return '#34383c'
+    case 'metal':
+      return '#adb2b8'
+    case 'marking':
+      return '#c8b273'
     case 'glass':
       return '#081216'
     case 'interior':
@@ -408,45 +432,53 @@ function applyRealisticFinish(material: THREE.MeshPhysicalMaterial, role: Materi
   const metallic = team.livery.finish === 'metallic'
 
   if (paint) {
-    material.roughness = satin ? 0.34 : metallic ? 0.22 : 0.19
-    material.metalness = metallic ? 0.18 : 0.06
-    material.clearcoat = satin ? 0.68 : 0.92
-    material.clearcoatRoughness = satin ? 0.24 : 0.12
-    material.envMapIntensity = 1.55
+    material.roughness = satin ? 0.36 : metallic ? 0.24 : 0.23
+    material.metalness = metallic ? 0.32 : 0
+    material.clearcoat = satin ? 0.5 : 1
+    material.clearcoatRoughness = satin ? 0.27 : 0.14
+    material.envMapIntensity = 1.05
     material.ior = 1.52
     material.specularIntensity = 0.92
   } else if (role === 'carbon') {
     material.roughness = 0.3
-    material.metalness = 0.16
-    material.clearcoat = 0.46
+    material.metalness = 0
+    material.clearcoat = 0.35
     material.clearcoatRoughness = 0.2
-    material.envMapIntensity = 1.32
-    material.anisotropy = 0.58
+    material.envMapIntensity = 0.95
+    material.anisotropy = 0.35
     if (!material.normalMap) {
       material.normalMap = microNormalTexture('carbon')
-      material.normalScale.set(0.2, 0.2)
+      material.normalScale.set(0.11, 0.11)
     }
   } else if (role === 'tire') {
-    material.roughness = 0.82
+    material.roughness = 0.86
     material.metalness = 0
     material.clearcoat = 0
-    material.envMapIntensity = 0.48
+    material.envMapIntensity = 0.7
     if (!material.normalMap) {
       material.normalMap = microNormalTexture('rubber')
-      material.normalScale.set(0.12, 0.12)
+      material.normalScale.set(0.18, 0.18)
     }
   } else if (role === 'rim') {
-    material.roughness = 0.14
-    material.metalness = 0.94
+    material.roughness = 0.32
+    material.metalness = 0.8
     material.clearcoat = 0.16
     material.clearcoatRoughness = 0.12
-    material.envMapIntensity = 1.7
+    material.envMapIntensity = 1.1
+  } else if (role === 'metal') {
+    material.roughness = 0.24
+    material.metalness = 1
+    material.envMapIntensity = 1.15
+  } else if (role === 'marking') {
+    material.roughness = 0.74
+    material.metalness = 0
+    material.envMapIntensity = 0.6
   } else if (role === 'glass') {
     material.roughness = 0.055
     material.metalness = 0
     material.clearcoat = 0.35
     material.clearcoatRoughness = 0.08
-    material.transmission = 0.34
+    material.transmission = 0.08
     material.thickness = 0.045
     material.ior = 1.5
     material.envMapIntensity = 1.42
@@ -512,9 +544,20 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
   const [loadFailed, setLoadFailed] = useState(false)
   const records = useRef<MeshRecord[]>([])
   const activeAeroRecords = useRef<ActiveAeroRecord[]>([])
+  const wheelRecords = useRef<WheelRecord[]>([])
   const materials = useRef<MaterialRecord[]>([])
   const teamRef = useRef(team)
   teamRef.current = team
+  const manifestRef = useRef(manifest)
+  manifestRef.current = manifest
+  // Color changes share one asset; rebuild only when its geometry changes.
+  const assetSignature = JSON.stringify({
+    ...manifest,
+    teamId: undefined,
+    constructor: undefined,
+    chassisName: undefined,
+    referenceAsOf: undefined,
+  })
   const exploded = useF1Store((s) => s.exploded)
   const xray = useF1Store((s) => s.xray)
   const floorView = useF1Store((s) => s.floorView)
@@ -523,17 +566,24 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
   const windSpeed = useF1Store((s) => s.windSpeed)
   const wheelRotation = useF1Store((s) => s.wheelRotation)
   const selected = useF1Store((s) => s.selectedComponent)
+  const quality = useF1Store((s) => s.quality)
   const set = useF1Store((s) => s.set)
   const highlight = useMemo(() => new THREE.Color(team.secondaryColor), [team.secondaryColor])
-  const modelUrl = manifest.modelPath
+  const modelUrl =
+    quality === 'ULTRA'
+      ? manifest.modelPath
+      : quality === 'HIGH'
+        ? (manifest.lodPaths?.[0] ?? manifest.modelPath)
+        : (manifest.lodPaths?.[1] ?? manifest.lodPaths?.[0] ?? manifest.modelPath)
 
   useEffect(() => {
+    const manifest = manifestRef.current
     let cancelled = false
-    let loadedScene: THREE.Group | null = null
     setModel(null)
     setLoadFailed(false)
     records.current = []
     activeAeroRecords.current = []
+    wheelRecords.current = []
     materials.current = []
 
     const loader = new GLTFLoader(assetManager)
@@ -593,7 +643,7 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
           const center = box.getCenter(new THREE.Vector3())
           scene.position.x -= center.x
           scene.position.z -= center.z
-          scene.position.y += -0.28 - box.min.y
+          scene.position.y += -0.5 - box.min.y
         }
 
         scene.updateMatrixWorld(true)
@@ -633,7 +683,7 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
           const wheelAxle = wheelAxleFor(object, manifest, scene)
           const wheelPosition = wheelPositionFor(object, manifest, scene)
           const declaredWheelAxis = wheelPosition ? manifest.wheelRotationAxes?.[wheelPosition] : undefined
-          const worldPosition = object.getWorldPosition(new THREE.Vector3()).sub(rootPosition)
+          const worldPosition = new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3()).sub(rootPosition)
           const basePosition = object.position.clone()
           const explodeOffset = explodedOffsetFor(part, worldPosition)
           meshRecords.push({
@@ -649,7 +699,6 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
           })
           meshMaterials.forEach((material) => {
             if (!(material instanceof THREE.MeshPhysicalMaterial)) return
-            material.transparent = true
             materialRecords.push({
               material,
               role: materialRole(material.name, material.userData.f1Role),
@@ -662,32 +711,20 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
         })
 
         records.current = meshRecords
+        // Spin the declared axle pivot once. Rotating every child mesh makes
+        // offset lettering and brake covers orbit instead of rotating together.
+        wheelRecords.current = (Object.entries(manifest.wheelNodes) as [WheelPosition, string[]][]).flatMap(
+          ([wheel, names]) => {
+            const object = names.map((name) => findMappedObject(scene, name)).find(Boolean)
+            const axis = manifest.wheelRotationAxes?.[wheel]
+            return object && axis
+              ? [{ object, axle: wheel.startsWith('front') ? ('front' as const) : ('rear' as const), axis }]
+              : []
+          },
+        )
         activeAeroRecords.current = collectActiveAeroRecords(scene, manifest)
         materials.current = materialRecords
 
-        const fieldBounds = robustSceneBounds(scene)
-        const obstacles = meshRecords
-          .filter((record) => record.part && record.mesh.visible)
-          .map((record) => {
-            const box = new THREE.Box3().setFromObject(record.mesh)
-            return {
-              semantic: record.part!,
-              min: [box.min.x, box.min.y, box.min.z] as [number, number, number],
-              max: [box.max.x, box.max.y, box.max.z] as [number, number, number],
-            }
-          })
-          .filter((obstacle) => obstacle.min.every(Number.isFinite) && obstacle.max.every(Number.isFinite))
-
-        setGeometryFieldSnapshot({
-          teamId: manifest.teamId,
-          sourceModel: manifest.modelPath,
-          bounds: {
-            min: [fieldBounds.min.x, fieldBounds.min.y, fieldBounds.min.z],
-            max: [fieldBounds.max.x, fieldBounds.max.y, fieldBounds.max.z],
-          },
-          obstacles,
-        })
-        loadedScene = scene
         setModel(scene)
       },
       undefined,
@@ -700,17 +737,58 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
       cancelled = true
       draco.dispose()
       ktx2.dispose()
-      clearGeometryFieldSnapshot(manifest.teamId, manifest.modelPath)
-      if (loadedScene) disposeScene(loadedScene)
     }
-  }, [gl, manifest, modelUrl])
+  }, [gl, assetSignature, modelUrl])
+
+  // Dispose after the primitive has left the scene. Disposing in the loader
+  // cleanup can make one final frame re-upload the old geometry and leak it.
+  useEffect(
+    () => () => {
+      if (model) disposeScene(model)
+    },
+    [model],
+  )
+
+  useEffect(() => {
+    if (!model) return
+    const fieldBounds = robustSceneBounds(model)
+    // One obstacle per physical component, with all four wheels first in the
+    // bounded GPU list, rather than spending it on repeated material bounds.
+    const entries = Object.entries(manifest.semantics).filter(([semantic]) => !semantic.includes('ActiveFlaps'))
+    entries.sort(([a], [b]) => Number(b.endsWith('Wheels')) - Number(a.endsWith('Wheels')))
+    const obstacles = entries.flatMap(([semantic, names]) =>
+      (names ?? []).flatMap((name) => {
+        const object = findMappedObject(model, name)
+        if (!object) return []
+        const box = new THREE.Box3().setFromObject(object)
+        if (box.isEmpty()) return []
+        return [
+          {
+            semantic: semanticToPart(semantic as CarSemanticComponent) ?? semantic,
+            min: box.min.toArray() as [number, number, number],
+            max: box.max.toArray() as [number, number, number],
+          },
+        ]
+      }),
+    )
+    setGeometryFieldSnapshot({
+      teamId: team.id,
+      sourceModel: manifest.modelPath,
+      bounds: {
+        min: fieldBounds.min.toArray() as [number, number, number],
+        max: fieldBounds.max.toArray() as [number, number, number],
+      },
+      obstacles,
+    })
+    return () => clearGeometryFieldSnapshot(team.id, manifest.modelPath)
+  }, [model, team.id, manifest])
 
   useEffect(() => {
     for (const record of materials.current) {
       record.baseColor.set(roleColor(team, record.role))
       applyRealisticFinish(record.material, record.role, team)
     }
-  }, [team])
+  }, [team, model])
 
   useFrame((_, dt) => {
     if (!model) return
@@ -719,9 +797,21 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
       record.mesh.visible = floorView ? record.part === 'floor' || record.part === 'diffuser' : record.baseVisible
       const target = exploded ? record.explodedPosition : record.basePosition
       record.mesh.position.lerp(target, blend)
-      if (record.wheelAxle && record.wheelSpinAxis && wheelRotation && windTunnel && windSpeed > 0) {
+      if (
+        !wheelRecords.current.length &&
+        record.wheelAxle &&
+        record.wheelSpinAxis &&
+        wheelRotation &&
+        windTunnel &&
+        windSpeed > 0
+      ) {
         record.mesh.rotation[record.wheelSpinAxis] -= wheelAngularVelocityRadS(windSpeed, record.wheelAxle) * dt
       }
+    }
+
+    if (wheelRotation && windTunnel && windSpeed > 0) {
+      for (const wheel of wheelRecords.current)
+        wheel.object.rotation[wheel.axis] += wheelAngularVelocityRadS(windSpeed, wheel.axle) * dt
     }
 
     for (const record of activeAeroRecords.current) {
@@ -741,6 +831,11 @@ export function CarModel({ team, manifest, position = [0, 0, 0], scale = 1, inte
     }
 
     for (const record of materials.current) {
+      const transparent = xray || record.baseOpacity < 1
+      if (record.material.transparent !== transparent) {
+        record.material.transparent = transparent
+        record.material.needsUpdate = true
+      }
       record.material.opacity = THREE.MathUtils.damp(record.material.opacity, xray ? 0.24 : record.baseOpacity, 6, dt)
       record.material.depthWrite = !xray
       record.material.color.lerp(record.baseColor, blend)

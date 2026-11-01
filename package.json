@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "assets:car": "node scripts/build-reference-car.mjs --all",
     "dev": "vite --config vite.config.ts",
     "build": "tsc -b && vite --config vite.config.ts build",
     "test": "vitest run",

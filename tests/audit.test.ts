@@ -147,19 +147,19 @@ describe('team and asset manifests', () => {
       expect(existsSync(join(process.cwd(), 'public', manifest.modelPath.replace(/^\//, '')))).toBe(true)
       const errors = validateCarManifest(manifest).filter((issue) => issue.severity === 'error')
       expect(errors).toEqual([])
-      expect(
-        validateCarManifest(manifest).some((issue) => issue.code === 'active-aero' && issue.severity === 'warning'),
-      ).toBe(true)
+      expect(validateCarManifest(manifest)).toEqual([])
     }
   })
 
   it('keeps the shared fallback manifest mappings traceable to real glTF node names', () => {
-    const gltfPath = join(process.cwd(), 'public', 'assets', 'cars', 'base', 'scene.gltf')
-    const gltf = JSON.parse(readFileSync(gltfPath, 'utf8')) as { nodes?: Array<{ name?: string }> }
+    const manifest = carManifestForTeam('mclaren')
+    const bytes = readFileSync(join(process.cwd(), 'public', manifest.modelPath))
+    const gltf = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString()) as {
+      nodes?: Array<{ name?: string }>
+    }
     const nodeNames = new Set(
       (gltf.nodes ?? []).map((node) => node.name).filter((name): name is string => Boolean(name)),
     )
-    const manifest = carManifestForTeam('mclaren')
 
     for (const names of Object.values(manifest.wheelNodes)) {
       for (const name of names) expect(nodeNames.has(name)).toBe(true)
@@ -189,6 +189,7 @@ describe('team and asset manifests', () => {
       accuracy: 'licensed-team-model',
       semantics: {},
       activeAero: { front: null, rear: null },
+      wheelRotationAxes: {},
       fallbackForTeam: false,
     }
     const errors = validateCarManifest(invalid).filter((issue) => issue.severity === 'error')

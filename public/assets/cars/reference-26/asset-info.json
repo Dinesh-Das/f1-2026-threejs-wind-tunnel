@@ -1,0 +1,13 @@
+{
+  "title": "Formula Reference 26",
+  "lod": "hero",
+  "revision": "original-reference-v1",
+  "units": "metre",
+  "forward": "+Z",
+  "up": "+Y",
+  "wheelbaseM": 3.4,
+  "triangles": 336648,
+  "meshes": 56,
+  "bytes": 8551336,
+  "description": "Original Formula-style design study. Shared geometry with team-color treatments; not constructor CAD or a verified regulation-compliant car."
+}
