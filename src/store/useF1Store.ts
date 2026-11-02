@@ -142,7 +142,7 @@ export const useF1Store = create<State>((set) => ({
   floorView: false,
   activeAeroState: 'Corner',
   flowPreset: 'High Speed',
-  turntable: true,
+  turntable: false,
   turntableDirection: 1,
   turntableSpeed: 0.18,
   cinematic: false,

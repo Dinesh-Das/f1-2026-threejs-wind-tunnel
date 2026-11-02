@@ -209,31 +209,34 @@ export function TechnicalPanel() {
             </div>
           </>
         )}
-        <div className="data-truth">
-          <b>MODEL STATUS</b>
-          <span>
-            {manifestAccuracyLabel(manifest)}
-            {manifest.fallbackForTeam ? ' · SHARED FALLBACK' : ''}
-          </span>
-        </div>
-        <div className="data-truth">
-          <b>MODEL SOURCE</b>
-          <span>
-            {manifest.source.title}
-            {manifest.source.author ? ` · ${manifest.source.author}` : ''}
-          </span>
-        </div>
-        <div className="data-truth">
-          <b>LICENSE</b>
-          <span>
-            {manifest.license.name}
-            {manifest.license.attributionRequired ? ' · ATTRIBUTION REQUIRED' : ''}
-          </span>
-        </div>
-        <div className="data-truth">
-          <b>REFERENCE</b>
-          <span>{manifest.referenceRevision}</span>
-        </div>
+        <details className="asset-details">
+          <summary>MODEL &amp; PROVENANCE</summary>
+          <div className="data-truth">
+            <b>MODEL STATUS</b>
+            <span>
+              {manifestAccuracyLabel(manifest)}
+              {manifest.fallbackForTeam ? ' · SHARED FALLBACK' : ''}
+            </span>
+          </div>
+          <div className="data-truth">
+            <b>MODEL SOURCE</b>
+            <span>
+              {manifest.source.title}
+              {manifest.source.author ? ` · ${manifest.source.author}` : ''}
+            </span>
+          </div>
+          <div className="data-truth">
+            <b>LICENSE</b>
+            <span>
+              {manifest.license.name}
+              {manifest.license.attributionRequired ? ' · ATTRIBUTION REQUIRED' : ''}
+            </span>
+          </div>
+          <div className="data-truth">
+            <b>REFERENCE</b>
+            <span>{manifest.referenceRevision}</span>
+          </div>
+        </details>
       </aside>
     </>
   )

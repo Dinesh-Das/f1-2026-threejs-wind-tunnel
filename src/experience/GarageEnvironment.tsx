@@ -1,98 +1,114 @@
-import { Grid, ContactShadows, RoundedBox } from '@react-three/drei'
+import { ContactShadows, MeshReflectorMaterial, RoundedBox } from '@react-three/drei'
 import { useF1Store } from '../store/useF1Store'
+import { useGeometryFieldSnapshot } from '../aerodynamics/core/geometryFieldRegistry'
 
 export function GarageEnvironment() {
   const aero = useF1Store((s) => s.aerodynamicMode)
-  const entered = useF1Store((s) => s.entered)
   const floorView = useF1Store((s) => s.floorView)
   const quality = useF1Store((s) => s.quality)
-  const cameraPreset = useF1Store((s) => s.cameraPreset)
-  const topView = cameraPreset === 'top'
+  const teamId = useF1Store((s) => s.selectedTeamId)
+  const moving = useF1Store((s) => s.turntable || s.exploded)
+  const snapshot = useGeometryFieldSnapshot(teamId)
+  const topView = useF1Store((s) => s.cameraPreset === 'top')
+  const reflective = quality === 'HIGH' || quality === 'ULTRA'
   if (aero || floorView) return null
   return (
     <group>
-      <mesh position={[0, -0.52, 0]} receiveShadow>
-        <cylinderGeometry args={[5.4, 5.6, 0.18, 128]} />
-        <meshPhysicalMaterial
-          color="#111416"
-          metalness={0.58}
-          roughness={0.24}
-          clearcoat={0.42}
-          clearcoatRoughness={0.2}
-        />
+      <mesh position={[0, -0.505, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[100, 100]} />
+        {reflective ? (
+          <MeshReflectorMaterial
+            color="#171b1e"
+            resolution={quality === 'ULTRA' ? 1024 : 512}
+            blur={[400, 160]}
+            mixBlur={1}
+            mixStrength={0.28}
+            mirror={0}
+            metalness={0.12}
+            roughness={0.68}
+            depthScale={0.3}
+            minDepthThreshold={0.6}
+            maxDepthThreshold={1.8}
+          />
+        ) : (
+          <meshStandardMaterial color="#171b1e" metalness={0.08} roughness={0.72} />
+        )}
       </mesh>
-      <mesh position={[0, -0.64, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[45, 45]} />
-        <meshStandardMaterial color="#0a0d0f" metalness={0.04} roughness={0.88} />
+      {/* Expansion joints in an epoxy-coated concrete slab. */}
+      {[-12, -6, 6, 12].map((offset) => (
+        <group key={offset}>
+          <mesh position={[offset, -0.503, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.009, 40]} />
+            <meshStandardMaterial color="#25292b" roughness={0.95} />
+          </mesh>
+          <mesh position={[0, -0.503, offset]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[40, 0.009]} />
+            <meshStandardMaterial color="#25292b" roughness={0.95} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 4.3, -12]} receiveShadow>
+        <boxGeometry args={[100, 9.6, 0.25]} />
+        <meshStandardMaterial color="#101417" roughness={0.82} metalness={0.12} />
       </mesh>
-      <Grid
-        position={[0, -0.635, 0]}
-        args={[40, 40]}
-        cellSize={1}
-        cellThickness={0.16}
-        cellColor="#252a2e"
-        sectionSize={5}
-        sectionThickness={0.42}
-        sectionColor="#383f44"
-        fadeDistance={25}
-        fadeStrength={1.7}
-      />
-      <mesh position={[0, 3.15, -14.5]} receiveShadow>
-        <boxGeometry args={[18, 6.4, 0.15]} />
-        <meshStandardMaterial color="#111416" metalness={0.36} roughness={0.5} />
+      <mesh position={[0, -0.12, -11.84]}>
+        <boxGeometry args={[100, 0.07, 0.05]} />
+        <meshStandardMaterial color="#85898b" metalness={0.8} roughness={0.35} />
       </mesh>
-      {[-4.4, -2.2, 0, 2.2, 4.4].map((x) => (
-        <mesh key={`wall-${x}`} position={[x, 3.15, -14.4]}>
-          <boxGeometry args={[0.035, 5.7, 0.08]} />
-          <meshStandardMaterial color="#343a3e" metalness={0.82} roughness={0.2} />
+      {[-12, -8, -4, 0, 4, 8, 12].map((x) => (
+        <mesh key={x} position={[x, 4.3, -11.86]}>
+          <boxGeometry args={[0.018, 9.4, 0.012]} />
+          <meshStandardMaterial color="#121618" roughness={0.85} />
         </mesh>
       ))}
-      {!topView && (
-        <>
-          <mesh position={[0, 6.4, -3.5]} receiveShadow>
-            <boxGeometry args={[20, 0.16, 19]} />
-            <meshStandardMaterial color="#0c0f11" metalness={0.38} roughness={0.52} />
-          </mesh>
-          {[-5.2, 0, 5.2].map((x) => (
-            <mesh key={`ceiling-${x}`} position={[x, 6.28, -1.5]}>
-              <boxGeometry args={[2.5, 0.035, 10.4]} />
-              <meshBasicMaterial color="#aeb8bc" toneMapped={false} />
+      {!topView &&
+        [-6.5, 0, 6.5].map((x) => (
+          <group key={x} position={[x, 7.4, -1]}>
+            <mesh>
+              <boxGeometry args={[1.7, 0.12, 12]} />
+              <meshStandardMaterial color="#1b1f22" metalness={0.7} roughness={0.35} />
             </mesh>
-          ))}
-        </>
-      )}
+            <mesh position={[0, -0.067, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[1.45, 11.6]} />
+              <meshBasicMaterial color="#eeeae3" toneMapped={false} />
+            </mesh>
+          </group>
+        ))}
+      {/* Equipment stays at the back of the bay, outside the car silhouette. */}
       {[-1, 1].map((side) => (
-        <group key={`bay-${side}`} position={[side * 8.8, 2.4, -6.2]}>
-          <RoundedBox args={[1.25, 4.5, 5.8]} radius={0.08} smoothness={4} castShadow receiveShadow>
-            <meshStandardMaterial color="#14181b" metalness={0.6} roughness={0.28} />
+        <group key={side} position={[side * 10, 0.42, -10.8]}>
+          <RoundedBox args={[3.4, 1.85, 0.85]} radius={0.035} smoothness={2} castShadow receiveShadow>
+            <meshStandardMaterial color="#262b2f" metalness={0.65} roughness={0.37} />
           </RoundedBox>
-          <mesh position={[-side * 0.64, 0.1, 1.35]}>
-            <boxGeometry args={[0.035, 3.5, 0.08]} />
-            <meshBasicMaterial color="#d9e1e5" toneMapped={false} />
+          <mesh position={[0, 0.96, 0]}>
+            <boxGeometry args={[3.5, 0.06, 0.94]} />
+            <meshStandardMaterial color="#92979a" metalness={0.85} roughness={0.35} />
           </mesh>
+          {[0.53, 0.1, -0.33].map((y) => (
+            <group key={y}>
+              <mesh position={[0, y, 0.431]}>
+                <boxGeometry args={[3.25, 0.012, 0.008]} />
+                <meshStandardMaterial color="#101315" />
+              </mesh>
+              <mesh position={[0, y + 0.1, 0.46]}>
+                <boxGeometry args={[1.1, 0.024, 0.038]} />
+                <meshStandardMaterial color="#a0a5a9" metalness={1} roughness={0.28} />
+              </mesh>
+            </group>
+          ))}
         </group>
       ))}
-      {[-1, 1].map((side) => (
-        <group key={`cabinet-${side}`} position={[side * 6.7, 0.18, -11.6]}>
-          <RoundedBox args={[1.5, 1.25, 0.7]} radius={0.06} smoothness={3} castShadow>
-            <meshStandardMaterial color="#1c2024" metalness={0.68} roughness={0.26} />
-          </RoundedBox>
-          {[0.18, -0.18].map((y) => (
-            <mesh key={y} position={[0, y, 0.37]}>
-              <boxGeometry args={[1.15, 0.018, 0.025]} />
-              <meshStandardMaterial color="#7b858c" metalness={0.92} roughness={0.14} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-      {entered && (quality === 'HIGH' || quality === 'ULTRA') && (
+      {reflective && (
         <ContactShadows
-          position={[0, -0.49, 0]}
-          opacity={0.5}
-          scale={10}
-          blur={1.45}
-          far={5.5}
-          resolution={quality === 'ULTRA' ? 512 : 256}
+          key={quality}
+          frames={moving || !snapshot ? Infinity : 32}
+          position={[0, -0.499, 0]}
+          opacity={0.62}
+          scale={14}
+          blur={2.2}
+          far={2.2}
+          resolution={256}
+          color="#080a0b"
         />
       )}
     </group>

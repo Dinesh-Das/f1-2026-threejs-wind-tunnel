@@ -16,11 +16,11 @@ Production assets must provide explicit manifest mappings or glTF `extras` for: 
 
 Wheel nodes must be mapped individually. If wheel animation is enabled, the manifest must also contain an explicit validated rotation axis for each wheel; do not infer an axis from vendor node names.
 
-The bundled shared fallback currently infers a wheel spin axis at runtime from each wheel mesh's bounds so the demo can show speed-linked rotation. That inference is a temporary fallback behavior only and **does not satisfy** the production requirement above. A production constructor asset still needs explicit, validated wheel axes in its manifest/glTF metadata and visual verification of rotation direction.
+The bundled original reference has an explicit X-axis pivot for each wheel assembly. Tire, cover and lettering share that pivot, while brake calipers remain on the suspension. Legacy bounds-based inference remains available for older fallback assets; it does not satisfy the production requirement above.
 
 ## Active aero
 
-A production asset must contain independently modelled front and rear active-aero elements. For every moving node, the manifest must define the exact node name, a hinge axis expressed in the node parent's local coordinate system, and either the node origin or an explicit parent-local hinge point. Each front/rear system must also define validated Corner Mode / Straight Mode angles. Do not map both a moving parent and one of its descendants as separate hinges; the runtime guards against this to prevent double transforms. The bundled fallback has no trustworthy hinge metadata and therefore deliberately leaves these mappings unavailable.
+A production asset must contain independently modelled front and rear active-aero elements. For every moving node, the manifest must define the exact node name, a hinge axis expressed in the node parent's local coordinate system, and either the node origin or an explicit parent-local hinge point. Each front/rear system must also define validated Corner Mode / Straight Mode angles. Do not map both a moving parent and one of its descendants as separate hinges; the runtime guards against this to prevent double transforms. The bundled original reference has explicitly authored hinge pivots and illustrative motion angles, not measured constructor mechanisms.
 
 ## Materials and textures
 

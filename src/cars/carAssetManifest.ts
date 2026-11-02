@@ -93,7 +93,10 @@ export type CarAssetManifest = {
 
 const referenceModel = {
   modelPath: '/assets/cars/reference-26/reference-26.glb',
-  lodPaths: ['/assets/cars/reference-26/reference-26-standard.glb', '/assets/cars/reference-26/reference-26-performance.glb'],
+  lodPaths: [
+    '/assets/cars/reference-26/reference-26-standard.glb',
+    '/assets/cars/reference-26/reference-26-performance.glb',
+  ],
   source: {
     title: 'Formula Reference 26',
     url: 'https://github.com/Dinesh-Das/f1-2026-threejs-wind-tunnel',

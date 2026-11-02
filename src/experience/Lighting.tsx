@@ -1,20 +1,18 @@
-import { Environment } from '@react-three/drei'
+import { Environment, Lightformer } from '@react-three/drei'
 import { useF1Store } from '../store/useF1Store'
-import { teamById } from '../data/teams'
 
 export function Lighting() {
-  const teamId = useF1Store((s) => s.selectedTeamId)
   const aero = useF1Store((s) => s.aerodynamicMode)
   const floorView = useF1Store((s) => s.floorView)
   const quality = useF1Store((s) => s.quality)
-  const team = teamById(teamId)
-  const shadowMapSize = quality === 'ULTRA' || quality === 'HIGH' ? 2048 : 1024
+  const shadowMapSize = quality === 'ULTRA' ? 2048 : 1024
   return (
     <>
-      <ambientLight intensity={floorView ? 0.1 : aero ? 0.035 : 0.055} />
+      <ambientLight intensity={floorView ? 0.1 : 0.12} />
       <directionalLight
-        position={[4, 9, 5]}
-        intensity={floorView ? 0.48 : aero ? 0.72 : 1.28}
+        position={[-3, 8, 5]}
+        intensity={floorView ? 0.48 : aero ? 1.1 : 1.65}
+        color="#fff5e9"
         castShadow={quality !== 'LOW'}
         shadow-mapSize={[shadowMapSize, shadowMapSize]}
         shadow-bias={-0.00008}
@@ -26,16 +24,10 @@ export function Lighting() {
         shadow-camera-top={5}
         shadow-camera-bottom={-3}
       />
-      <spotLight
-        position={[-6, 4.6, 3.5]}
-        intensity={aero ? 0.16 : 0.44}
-        angle={0.4}
-        penumbra={1}
-        color={team.primaryColor}
-      />
+      <spotLight position={[-6, 4.6, 3.5]} intensity={aero ? 4 : 12} angle={0.4} penumbra={1} color="#e6efff" />
       <spotLight
         position={[4.8, 3.8, -5.6]}
-        intensity={aero ? 0.72 : 1.16}
+        intensity={aero ? 12 : 24}
         angle={0.48}
         penumbra={1}
         color={aero ? '#dce8eb' : '#f7fbff'}
@@ -45,7 +37,7 @@ export function Lighting() {
         rotation={[-Math.PI / 2, 0, 0]}
         width={2.25}
         height={10.5}
-        intensity={aero ? 1.55 : 3.65}
+        intensity={aero ? 1.5 : 2.8}
         color="#f4f7f8"
       />
       <rectAreaLight
@@ -53,7 +45,7 @@ export function Lighting() {
         rotation={[0, Math.PI / 2, 0]}
         width={7.8}
         height={0.72}
-        intensity={aero ? 0.72 : 2.1}
+        intensity={aero ? 0.72 : 1.6}
         color="#dce6e9"
       />
       <rectAreaLight
@@ -61,7 +53,7 @@ export function Lighting() {
         rotation={[0, -Math.PI / 2, 0]}
         width={6.9}
         height={0.62}
-        intensity={aero ? 0.54 : 1.58}
+        intensity={aero ? 0.54 : 0.9}
         color="#ffffff"
       />
       {!aero && (
@@ -78,8 +70,25 @@ export function Lighting() {
         <Environment
           files="/assets/hdr/studio_small_03_1k.hdr"
           background={false}
-          environmentIntensity={aero ? 0.48 : 0.82}
-        />
+          environmentIntensity={aero ? 0.22 : 0.18}
+        >
+          <Lightformer
+            form="rect"
+            position={[-4, 5, 2]}
+            rotation={[Math.PI / 2, 0, 0]}
+            scale={[3, 9, 1]}
+            intensity={3}
+            color="#fff7ec"
+          />
+          <Lightformer
+            form="rect"
+            position={[5, 3, -2]}
+            rotation={[0, -Math.PI / 2, 0]}
+            scale={[10, 1, 1]}
+            intensity={2}
+            color="#e2ebff"
+          />
+        </Environment>
       )}
       {floorView && (
         <>

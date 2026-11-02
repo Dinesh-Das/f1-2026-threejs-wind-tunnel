@@ -6,12 +6,12 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useF1Store, type CameraPreset } from '../store/useF1Store'
 
 const presets: Record<CameraPreset, [THREE.Vector3, THREE.Vector3]> = {
-  hero: [new THREE.Vector3(9.6, 2.65, 12.8), new THREE.Vector3(0, 0.12, -0.1)],
+  hero: [new THREE.Vector3(9.6, 2.8, 11.8), new THREE.Vector3(0, 0.3, 0)],
   rearThreeQuarter: [new THREE.Vector3(8.2, 2.8, -14.2), new THREE.Vector3(0, 0.14, -0.45)],
   front: [new THREE.Vector3(0, 1.55, 13.2), new THREE.Vector3(0, 0.1, 0.25)],
   rear: [new THREE.Vector3(0, 1.7, -12.2), new THREE.Vector3(0, 0.18, -0.45)],
-  left: [new THREE.Vector3(-10.4, 1.45, 0.2), new THREE.Vector3(0, 0.12, 0)],
-  right: [new THREE.Vector3(10.4, 1.45, 0.2), new THREE.Vector3(0, 0.12, 0)],
+  left: [new THREE.Vector3(-18.5, 2.1, 0.2), new THREE.Vector3(0, 0.35, 0)],
+  right: [new THREE.Vector3(18.5, 2.1, 0.2), new THREE.Vector3(0, 0.35, 0)],
   top: [new THREE.Vector3(0.12, 19, 0.12), new THREE.Vector3(0, 0, 0)],
   frontWing: [new THREE.Vector3(5.8, 1.45, 9.8), new THREE.Vector3(0, 0.05, 3.55)],
   sidepod: [new THREE.Vector3(5.4, 1.35, 2.1), new THREE.Vector3(0.9, 0.28, 0)],
@@ -25,7 +25,7 @@ const presets: Record<CameraPreset, [THREE.Vector3, THREE.Vector3]> = {
 }
 
 const presetFov: Record<CameraPreset, number> = {
-  hero: 34,
+  hero: 31,
   rearThreeQuarter: 34,
   front: 31,
   rear: 31,
@@ -76,7 +76,7 @@ const cinematicSteps: CameraPreset[] = [
 ]
 
 export function CameraRig() {
-  const { camera } = useThree()
+  const { camera, size } = useThree()
   const controls = useRef<OrbitControlsImpl>(null)
   const preset = useF1Store((s) => s.cameraPreset)
   const selected = useF1Store((s) => s.selectedComponent)
@@ -87,20 +87,35 @@ export function CameraRig() {
   const set = useF1Store((s) => s.set)
   const desired = useMemo(() => {
     const resolvedPreset = selected ? (componentPreset[selected] ?? preset) : preset
-    if (!selected && resolvedPreset === 'hero' && aerodynamicMode) return aerodynamicHero
-    if (!selected && resolvedPreset === 'hero' && compareMode) return compareHero
-    return presets[resolvedPreset]
-  }, [preset, selected, aerodynamicMode, compareMode])
+    const base =
+      !selected && resolvedPreset === 'hero' && aerodynamicMode
+        ? aerodynamicHero
+        : !selected && resolvedPreset === 'hero' && compareMode
+          ? compareHero
+          : presets[resolvedPreset]
+    const wholeCar = ['hero', 'rearThreeQuarter', 'front', 'rear', 'left', 'right', 'top', 'engineering'].includes(
+      resolvedPreset,
+    )
+    const aspect = size.width / size.height
+    const distanceScale = wholeCar && aspect < 1.2 ? Math.max(1, 1.25 / aspect) : 1
+    return [base[0].clone().sub(base[1]).multiplyScalar(distanceScale).add(base[1]), base[1]]
+  }, [preset, selected, aerodynamicMode, compareMode, size.width, size.height])
   const elapsed = useRef(0)
+  const transitioning = useRef(true)
+
+  useEffect(() => {
+    transitioning.current = true
+  }, [desired])
 
   useEffect(() => {
     elapsed.current = 0
   }, [cinematic])
   useFrame((_, dt) => {
-    if (!controls.current) return
+    if (!controls.current || (!transitioning.current && !cinematic)) return
     let pos = desired[0]
     let target = desired[1]
-    let targetFov = !selected && preset === 'hero' && aerodynamicMode ? 35 : presetFov[preset]
+    const resolvedPreset = selected ? (componentPreset[selected] ?? preset) : preset
+    let targetFov = !selected && preset === 'hero' && aerodynamicMode ? 35 : presetFov[resolvedPreset]
     if (cinematic) {
       elapsed.current += dt
       const p = cinematicSteps[Math.floor((elapsed.current / 3) % cinematicSteps.length)]
@@ -117,6 +132,9 @@ export function CameraRig() {
     }
     controls.current.target.lerp(target, t)
     controls.current.update()
+    if (camera.position.distanceTo(pos) < 0.003 && controls.current.target.distanceTo(target) < 0.003) {
+      transitioning.current = false
+    }
   })
   return (
     <OrbitControls
@@ -125,8 +143,12 @@ export function CameraRig() {
       regress
       enableDamping
       dampingFactor={0.055}
+      onStart={() => {
+        transitioning.current = false
+        set({ cinematic: false, turntable: false })
+      }}
       minDistance={2.2}
-      maxDistance={22}
+      maxDistance={Math.max(22, desired[0].distanceTo(desired[1]) * 1.25)}
       maxPolarAngle={Math.PI * 0.82}
     />
   )

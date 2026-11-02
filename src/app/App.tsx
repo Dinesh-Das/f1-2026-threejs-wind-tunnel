@@ -14,6 +14,7 @@ import { useF1Store } from '../store/useF1Store'
 
 export function App() {
   const entered = useF1Store((s) => s.entered)
+  const aero = useF1Store((s) => s.aerodynamicMode)
   const selectedTeamId = useF1Store((s) => s.selectedTeamId)
   const selectedDriverId = useF1Store((s) => s.selectedDriverId)
   const set = useF1Store((s) => s.set)
@@ -41,7 +42,16 @@ export function App() {
           <AeroControls />
           <TechnicalPanel />
           <PerformanceSettings />
-          <div className="simulation-note">VISUAL AERODYNAMIC SIMULATION · NOT CFD</div>
+          <div className="simulation-note">
+            {aero
+              ? 'GEOMETRY-AWARE FLOW VISUALIZATION · NOT CFD'
+              : `${team.shortName.toUpperCase()} COLORWAY · ORIGINAL REFERENCE DESIGN`}
+          </div>
+          {!aero && (
+            <div className="viewport-guidance">
+              DRAG TO ORBIT <span>/</span> SCROLL TO INSPECT
+            </div>
+          )}
         </div>
       )}
     </main>

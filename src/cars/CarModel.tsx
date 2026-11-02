@@ -478,7 +478,9 @@ function applyRealisticFinish(material: THREE.MeshPhysicalMaterial, role: Materi
     material.metalness = 0
     material.clearcoat = 0.35
     material.clearcoatRoughness = 0.08
-    material.transmission = 0.08
+    // Mirrors and the steering display are opaque surfaces under a clear coat.
+    // Transmission would trigger an extra full-scene render for these tiny parts.
+    material.transmission = 0
     material.thickness = 0.045
     material.ior = 1.5
     material.envMapIntensity = 1.42

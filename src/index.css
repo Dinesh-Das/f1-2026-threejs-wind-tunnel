@@ -510,6 +510,9 @@ button {
   border-left: 1px solid var(--line);
   padding: 4px 0 16px 18px;
   text-shadow: 0 1px 8px #000;
+  background: rgba(9, 12, 14, 0.78);
+  backdrop-filter: blur(16px);
+  padding: 18px;
 }
 .technical-panel-toggle,
 .aero-panel-toggle {
@@ -607,9 +610,42 @@ button {
 .data-truth {
   margin-top: 14px;
   font-size: 9px;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 8px;
   color: #697178;
+}
+.asset-details {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  pointer-events: auto;
+}
+.asset-details summary {
+  cursor: pointer;
+  color: #a1a8ae;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.asset-details .data-truth {
+  line-height: 1.6;
+}
+.viewport-guidance {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 84px;
+  font:
+    9px ui-monospace,
+    Consolas,
+    monospace;
+  letter-spacing: 0.15em;
+  color: #b2b8bc;
+  white-space: nowrap;
+}
+.viewport-guidance span {
+  margin: 0 10px;
+  color: #626b72;
 }
 .data-truth span {
   color: #b7bec3;
@@ -664,10 +700,10 @@ button {
 .simulation-note {
   position: absolute;
   left: 22px;
-  bottom: 25px;
-  color: #566068;
-  font-size: 9px;
-  letter-spacing: 0.14em;
+  bottom: 80px;
+  color: #a0a7ad;
+  font-size: 8px;
+  letter-spacing: 0.1em;
 }
 .intro {
   position: absolute;

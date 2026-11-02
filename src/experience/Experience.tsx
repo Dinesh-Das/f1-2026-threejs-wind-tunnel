@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { AdaptiveDpr } from '@react-three/drei'
-import { EffectComposer, Bloom, N8AO, SMAA } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, N8AO, SMAA, ToneMapping } from '@react-three/postprocessing'
+import { ToneMappingMode } from 'postprocessing'
 import * as THREE from 'three'
 import { CameraRig } from './CameraRig'
 import { Lighting } from './Lighting'
@@ -17,17 +18,17 @@ export function Experience() {
     <Canvas
       className="f1-canvas"
       dpr={quality === 'ULTRA' ? [1.25, 1.75] : quality === 'HIGH' ? [1.1, 1.5] : quality === 'MEDIUM' ? [1, 1.25] : 1}
-      gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
+      gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.AgXToneMapping }}
       shadows={quality !== 'LOW'}
-      camera={{ position: [10, 2.65, 12], fov: 34, near: 0.05, far: 120 }}
+      camera={{ position: [9.6, 2.8, 11.8], fov: 31, near: 0.05, far: 120 }}
       onCreated={({ gl }) => {
-        gl.toneMappingExposure = 0.96
+        gl.toneMappingExposure = 1.04
         gl.outputColorSpace = THREE.SRGBColorSpace
         gl.shadowMap.type = THREE.PCFSoftShadowMap
       }}
     >
-      <color attach="background" args={[aero ? '#04080a' : '#050607']} />
-      <fog attach="fog" args={[aero ? '#04080a' : '#050607', 14, 34]} />
+      <color attach="background" args={[aero ? '#080e11' : '#181b1d']} />
+      <fog attach="fog" args={[aero ? '#080e11' : '#181b1d', 24, 62]} />
       <Lighting />
       <GarageEnvironment />
       <WindTunnelEnvironment />
@@ -36,7 +37,7 @@ export function Experience() {
       <PerformanceTelemetry />
       <AdaptiveDpr />
       {(quality === 'HIGH' || quality === 'ULTRA') && (
-        <EffectComposer multisampling={0} frameBufferType={THREE.UnsignedByteType}>
+        <EffectComposer multisampling={0} frameBufferType={THREE.HalfFloatType}>
           {quality === 'ULTRA' && (
             <N8AO
               quality="high"
@@ -49,6 +50,7 @@ export function Experience() {
           )}
           <SMAA />
           <Bloom intensity={quality === 'ULTRA' ? 0.075 : 0.035} luminanceThreshold={1.7} mipmapBlur />
+          <ToneMapping mode={ToneMappingMode.AGX} />
         </EffectComposer>
       )}
     </Canvas>

@@ -4,9 +4,9 @@ A React 19 + TypeScript + React Three Fiber vehicle showcase and wind-tunnel vis
 
 ## Current accuracy status
 
-The repository currently ships one shared third-party low-poly Formula-style glTF for all 11 team presentations. It is **not** an exact 2026 McLaren, Ferrari, Mercedes, Red Bull, Audi, Cadillac, or other constructor chassis. Team colour treatments are stylized presentation only. The bundled model is “basic Lowpoly F1 Car V1” by arthihalder under CC BY 4.0; attribution is preserved in `public/assets/cars/base/LICENSE.txt` and in the typed manifest.
+The application ships **Formula Reference 26**, an original, detailed Formula-style GLB with curved bodywork, an open cockpit and halo, layered airfoils, suspension, brake hardware, rounded slick tires, and original sidewall lettering. All 11 team presentations share this design with team-color treatments. It is **not** an exact constructor chassis or a verified regulation-compliant car.
 
-The app therefore labels the vehicle as a geometry placeholder/reference fallback. True close-up constructor realism still requires licensed or independently created high-detail team assets that satisfy [ASSET_REQUIREMENTS.md](./ASSET_REQUIREMENTS.md).
+The reproducible asset recipe is `scripts/build-reference-car.mjs`. Run `npm run assets:car` to generate all three detail levels: approximately 337k triangles / 8.55 MB for Ultra, 197k / 5.38 MB for High, and 114k / 3.49 MB for Medium/Low. Geometry is indexed and batched into 56 meshes by component and material. The GLBs are authored in metres, with +Y up and +Z forward; the manifest converts them to scene units. Exact constructor realism still requires licensed or independently recreated team assets satisfying [ASSET_REQUIREMENTS.md](./ASSET_REQUIREMENTS.md).
 
 ## Architecture
 
@@ -28,9 +28,9 @@ The current pressure layer is an explicitly labelled **relative-pressure estimat
 
 The UI separates physical/scenario controls from visualization controls and uses **CORNER MODE** and **STRAIGHT MODE** terminology. Physical controls include free-stream speed, explicit yaw, rolling road, and wheel rotation. Visualization controls include particles, streamlines, velocity vectors, relative pressure, vorticity, wake, underfloor flow, center slice, probe, and particle density.
 
-The current fallback model does not contain independently modelled, validated 2026 flap hinges, so it does not pretend to animate arbitrary wing meshes as an accurate active-aero mechanism. The aero provider still reacts to the selected mode qualitatively.
+The original reference design contains independently modelled front/rear flaps and explicit axle-aligned hinge pivots. Corner/Straight controls smoothly animate those elements. Their angles demonstrate the concept; they are not constructor mechanism measurements or verified regulation settings. The aero provider responds qualitatively.
 
-Rolling-road speed and wheel angular velocity are derived from free-stream speed. At 0 km/h, free-stream dynamic pressure, wheel RPM, rolling-road motion, and the sampled aero field go to zero. The bundled fallback currently infers wheel spin axes from mesh bounds at runtime; those inferred axes are a temporary fallback behavior and are not equivalent to validated per-wheel manifest axes required for a production asset.
+Rolling-road speed and wheel angular velocity are derived from free-stream speed. At 0 km/h, free-stream dynamic pressure, wheel RPM, rolling-road motion, and the sampled aero field go to zero. Each wheel has an explicit X-axis pivot, so tire, cover and lettering rotate together while the brake caliper stays fixed. Legacy bounds-based inference remains available for older assets without declared axes.
 
 ## Running and verification
 
@@ -54,13 +54,17 @@ npm run verify
 
 ## Rendering
 
-The car loader supports GLTF/DRACO/KTX2, normalizes model scale, clones resources safely, applies physically based material treatments by semantic/material role, and supplies geometry bounds to the aero provider. The scene uses ACES-style tone mapping, sRGB output, controlled studio/environment lighting, adaptive DPR, and quality settings.
+The car loader supports GLTF/DRACO/KTX2, normalizes scale, clones resources, selects quality-specific geometry, and supplies semantic bounds to the aero provider. Team-color changes reuse the loaded geometry. GPU resources are disposed after the old primitive leaves the scene. Wheel bounds lead the bounded GPU obstacle list so material batching cannot displace them.
 
-The shared fallback remains the dominant visual limitation. A production car intended for 1440p/4K close inspection should meet the geometry, texture, semantic, LOD, active-aero, and licensing requirements documented in `ASSET_REQUIREMENTS.md`.
+The scene uses AgX tone mapping in both the direct renderer and the HDR post-processing path, sRGB output, neutral studio softboxes, a local HDR environment, soft contact shadows, blurred floor reflections, and adaptive DPR. Dielectric clearcoat paint, woven carbon micro-normals, rubber grain, dark wheel covers, exposed metal, and tire markings have separate finishes. Manual orbit is retained after a camera transition, and whole-car framing adapts to portrait viewports. High/Ultra enable reflections and post-processing; Medium/Low use a simpler floor and the lighter asset. Stable 60 FPS on every device is not claimed.
+
+The reference remains a procedural design study. True close-up photorealism still benefits from authored UV/PBR textures, more detailed mechanical interiors, and constructor-accurate licensed geometry. No CFD dataset is bundled.
 
 ## Licensing
 
-Bundled base car: “basic Lowpoly F1 Car V1” by arthihalder, CC BY 4.0. See `public/assets/cars/base/LICENSE.txt` and the source URL stored in `src/cars/carAssetManifest.ts`.
+Active reference geometry: original project-authored work dedicated under CC0 1.0. Lettering uses the Helvetiker font included with Three.js; the MAGENTA font notice is retained in `public/assets/cars/reference-26/LICENSE.txt`.
+
+The older, unused base car remains in the repository: “basic Lowpoly F1 Car V1” by arthihalder, CC BY 4.0. Its attribution is retained in `public/assets/cars/base/LICENSE.txt`.
 
 Only add replacement models, logos, sponsor artwork, photography, or textures when the project has the rights required for redistribution. Official imagery can be used as visual reference without assuming redistribution rights.
 

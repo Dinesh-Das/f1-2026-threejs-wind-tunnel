@@ -5,6 +5,8 @@ const SAMPLE_SECONDS = 1
 
 export function PerformanceTelemetry() {
   const gl = useThree((state) => state.gl)
+  const scene = useThree((state) => state.scene)
+  const camera = useThree((state) => state.camera)
   const elapsed = useRef(0)
   const frames = useRef(0)
 
@@ -21,6 +23,14 @@ export function PerformanceTelemetry() {
     root.dataset.f1Geometries = String(gl.info.memory.geometries)
     root.dataset.f1Textures = String(gl.info.memory.textures)
     root.dataset.f1PixelRatio = gl.getPixelRatio().toFixed(2)
+    root.dataset.f1Environment = scene.environmentIntensity.toFixed(2)
+    root.dataset.f1ToneMapping = String(gl.toneMapping)
+    root.dataset.f1Exposure = gl.toneMappingExposure.toFixed(2)
+    root.dataset.f1ShadowMap = String(gl.shadowMap.enabled)
+    root.dataset.f1Camera = camera.position
+      .toArray()
+      .map((v) => v.toFixed(3))
+      .join(',')
 
     elapsed.current = 0
     frames.current = 0
